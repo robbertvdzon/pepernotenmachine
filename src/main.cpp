@@ -2,10 +2,9 @@
 #include "../include/config.h"
 #include "../include/motor.h"
 #include "../include/button.h"
+#include "../include/horn.h"
 #include "../include/ble_manager.h"
 #include <Arduino.h>
-
-static uint32_t lastHornTurnedOnTime = 0;
 
 // callbacks forwarded from BLE manager
 static void motor_write_cb(uint32_t halfPeriodUs) {
@@ -13,8 +12,7 @@ static void motor_write_cb(uint32_t halfPeriodUs) {
 }
 
 static void horn_write_cb(bool on) {
-    digitalWrite(HORN, on ? HIGH : LOW);
-    if (on) lastHornTurnedOnTime = millis();
+    horn_set(on);
 }
 
 // button notification callback
@@ -27,9 +25,7 @@ void setup() {
     Serial.begin(115200);
 
     motor_init();
-
-    pinMode(HORN, OUTPUT);
-    digitalWrite(HORN, LOW);
+    horn_init();
 
     // initialize BLE with callbacks
     ble_init(motor_write_cb, horn_write_cb);
@@ -42,14 +38,8 @@ void setup() {
 void loop() {
     // Keep button handling responsive and non-blocking
     button_update();
-
-    // Auto-turn-off horn after 2 seconds (failsafe)
-    if (digitalRead(HORN) == HIGH) {
-        if (millis() - lastHornTurnedOnTime >= 2000) {
-            digitalWrite(HORN, LOW);
-            Serial.println("Horn AUTO OFF");
-        }
-    }
+    // Service horn auto-off and other horn tasks
+    horn_update();
 
     // short yield
     vTaskDelay(1 / portTICK_PERIOD_MS);
