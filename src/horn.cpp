@@ -7,15 +7,15 @@ static bool hornState = false;
 static const uint32_t AUTO_OFF_MS = 2000; // auto-off after 2 seconds
 
 void horn_init() {
-    pinMode(HORN, OUTPUT);
-    digitalWrite(HORN, LOW);
+    pinMode(HORN_PIN, OUTPUT);
+    digitalWrite(HORN_PIN, LOW);
     hornState = false;
     lastOnTime = 0;
 }
 
 void horn_set(bool on) {
     hornState = on;
-    digitalWrite(HORN, on ? HIGH : LOW);
+    digitalWrite(HORN_PIN, on ? HIGH : LOW);
     if (on) {
         lastOnTime = millis();
     }
@@ -25,7 +25,7 @@ void horn_update() {
     if (hornState) {
         if (millis() - lastOnTime >= AUTO_OFF_MS) {
             hornState = false;
-            digitalWrite(HORN, LOW);
+            digitalWrite(HORN_PIN, LOW);
             Serial.println("Horn AUTO OFF");
         }
     }

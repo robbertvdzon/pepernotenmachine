@@ -1,5 +1,6 @@
 #include "../include/ble_manager.h"
 #include "../include/config.h"
+#include "../include/led.h"
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
@@ -11,6 +12,7 @@ static BLEService* pService = nullptr;
 static BLECharacteristic* pMotorCharacteristic = nullptr;
 static BLECharacteristic* pHornCharacteristic = nullptr;
 static BLECharacteristic* pButtonCharacteristic = nullptr;
+static BLECharacteristic* pLedCharacteristic = nullptr;
 
 static motor_write_cb_t motor_cb = nullptr;
 static horn_write_cb_t horn_cb = nullptr;
@@ -37,6 +39,21 @@ class MotorCharCallbacks : public BLECharacteristicCallbacks {
                               (static_cast<uint8_t>(v[2]) << 8) |
                               (static_cast<uint8_t>(v[3]));
         if (motor_cb) motor_cb(speedValue);
+    }
+};
+
+class LedCharCallbacks : public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic* c) override {
+        std::string v = c->getValue();
+        if (v.length() < 4) return;
+        // forward raw bytes to led module
+        led_set_from_bytes(reinterpret_cast<const uint8_t*>(v.data()), v.length());
+        // update the characteristic value so clients can read the current state
+        // store as 4-byte state: mode,r,g,b
+        uint8_t state[4];
+        led_get_state(state);
+        std::string sval((char*)state, 4);
+        c->setValue(sval);
     }
 };
 
@@ -67,6 +84,11 @@ void ble_init(motor_write_cb_t motorCb, horn_write_cb_t hornCb) {
     pButtonCharacteristic = pService->createCharacteristic(BUTTON_CHARACTERISTIC_UUID, BLECharacteristic::PROPERTY_NOTIFY | BLECharacteristic::PROPERTY_READ);
     pButtonCharacteristic->addDescriptor(new BLE2902());
 
+    // LED characteristic: read/write/notify
+    pLedCharacteristic = pService->createCharacteristic(LED_CHARACTERISTIC_UUID, BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY);
+    pLedCharacteristic->addDescriptor(new BLE2902());
+    pLedCharacteristic->setCallbacks(new LedCharCallbacks());
+
     pService->start();
 
     BLEAdvertising* pAdvertising = BLEDevice::getAdvertising();
@@ -86,4 +108,12 @@ void ble_notify_button(uint8_t payload) {
     std::string val(1, static_cast<char>(payload));
     pButtonCharacteristic->setValue(val);
     pButtonCharacteristic->notify();
+}
+
+void ble_notify_led_done() {
+    if (pLedCharacteristic == nullptr) return;
+    // send a 1-byte completion notification
+    std::string val(1, static_cast<char>(1));
+    pLedCharacteristic->setValue(val);
+    pLedCharacteristic->notify();
 }
