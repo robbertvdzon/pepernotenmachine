@@ -16,8 +16,12 @@ void horn_init() {
 void horn_set(bool on) {
     hornState = on;
     digitalWrite(HORN_PIN, on ? HIGH : LOW);
+    Serial.print("Horn");
     if (on) {
+        Serial.println(" ON");
         lastOnTime = millis();
+    } else {
+        Serial.println(" OFF");
     }
 }
 

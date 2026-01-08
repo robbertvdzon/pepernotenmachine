@@ -20,45 +20,82 @@ static uint32_t lastFlashToggle = 0;
 static bool flashOn = false;
 
 // sine pulsing
-static const float SINE_FREQ_HZ = 1.0f; // 1 Hz pulse
+static const float SINE_FREQ_HZ = 1.0f;  // 1 Hz pulse
 
 // rainbow
-static const uint32_t RAINBOW_PERIOD_MS = 5000; // 5s full cycle
+static const uint32_t RAINBOW_PERIOD_MS = 5000;  // 5s full cycle
 
 // crossfade
 static bool inCrossfade = false;
-static uint8_t cf_startR=0, cf_startG=0, cf_startB=0;
-static uint8_t cf_targetR=0, cf_targetG=0, cf_targetB=0;
+static uint8_t cf_startR = 0, cf_startG = 0, cf_startB = 0;
+static uint8_t cf_targetR = 0, cf_targetG = 0, cf_targetB = 0;
 static uint32_t cf_startTime = 0;
-static uint32_t cf_duration = 0; // ms
+static uint32_t cf_duration = 0;  // ms
 
 static uint32_t lastUpdate = 0;
 
-static void applyColor(float r, float g, float b) {
-    // clamp and write to pixel
+// Track last color written to the strip to avoid unnecessary repeated writes which
+// can cause visible flicker when the color is stable.
+static uint8_t lastAppliedR = 0, lastAppliedG = 0, lastAppliedB = 0;
+static bool lastAppliedInitialized = false;
+
+static void applyColor(float r, float g, float b, bool forceShow = true) {
+    // clamp to byte
     uint8_t R = (uint8_t)constrain(roundf(r), 0, 255);
     uint8_t G = (uint8_t)constrain(roundf(g), 0, 255);
     uint8_t B = (uint8_t)constrain(roundf(b), 0, 255);
+
+    // if color hasn't changed and caller didn't force a show, skip the expensive strip.show()
+    if (!forceShow && lastAppliedInitialized && R == lastAppliedR && G == lastAppliedG && B == lastAppliedB) {
+        // still set the pixel color in case other code reads it before next show
+        strip.setPixelColor(0, strip.Color(R, G, B));
+        return;
+    }
+
     strip.setPixelColor(0, strip.Color(R, G, B));
     strip.show();
+
+    lastAppliedR = R;
+    lastAppliedG = G;
+    lastAppliedB = B;
+    lastAppliedInitialized = true;
 }
 
-static void hsv_to_rgb(float h, float s, float v, uint8_t &r, uint8_t &g, uint8_t &b) {
+static void hsv_to_rgb(float h, float s, float v, uint8_t& r, uint8_t& g, uint8_t& b) {
     // h in [0,360), s,v in [0,1]
     float c = v * s;
     float hh = h / 60.0f;
     float x = c * (1 - fabsf(fmodf(hh, 2.0f) - 1));
     float m = v - c;
-    float rr=0, gg=0, bb=0;
-    if (hh >= 0 && hh < 1) { rr=c; gg=x; bb=0; }
-    else if (hh < 2) { rr=x; gg=c; bb=0; }
-    else if (hh < 3) { rr=0; gg=c; bb=x; }
-    else if (hh < 4) { rr=0; gg=x; bb=c; }
-    else if (hh < 5) { rr=x; gg=0; bb=c; }
-    else { rr=c; gg=0; bb=x; }
-    r = (uint8_t)constrain(roundf((rr + m)*255.0f), 0, 255);
-    g = (uint8_t)constrain(roundf((gg + m)*255.0f), 0, 255);
-    b = (uint8_t)constrain(roundf((bb + m)*255.0f), 0, 255);
+    float rr = 0, gg = 0, bb = 0;
+    if (hh >= 0 && hh < 1) {
+        rr = c;
+        gg = x;
+        bb = 0;
+    } else if (hh < 2) {
+        rr = x;
+        gg = c;
+        bb = 0;
+    } else if (hh < 3) {
+        rr = 0;
+        gg = c;
+        bb = x;
+    } else if (hh < 4) {
+        rr = 0;
+        gg = x;
+        bb = c;
+    } else if (hh < 5) {
+        rr = x;
+        gg = 0;
+        bb = c;
+    } else {
+        rr = c;
+        gg = 0;
+        bb = x;
+    }
+    r = (uint8_t)constrain(roundf((rr + m) * 255.0f), 0, 255);
+    g = (uint8_t)constrain(roundf((gg + m) * 255.0f), 0, 255);
+    b = (uint8_t)constrain(roundf((bb + m) * 255.0f), 0, 255);
 }
 
 void led_init() {
@@ -73,22 +110,28 @@ void led_init() {
 void led_set(uint8_t m, uint8_t r, uint8_t g, uint8_t b) {
     // called from BLE task potentially
     mode = m;
-    baseR = r; baseG = g; baseB = b;
-    inCrossfade = false; // cancel any running crossfade
+    baseR = r;
+    baseG = g;
+    baseB = b;
+    inCrossfade = false;  // cancel any running crossfade
     // set immediate color depending on mode
     if (mode == LED_MODE_OFF) {
         curR = curG = curB = 0;
-        applyColor(0,0,0);
+        applyColor(0, 0, 0, true);
     } else if (mode == LED_MODE_ON) {
-        curR = baseR; curG = baseG; curB = baseB;
-        applyColor(curR, curG, curB);
+        curR = baseR;
+        curG = baseG;
+        curB = baseB;
+        applyColor(curR, curG, curB, true);
     } else if (mode == LED_MODE_FLASH) {
         lastFlashToggle = millis();
         flashOn = true;
-        applyColor(baseR, baseG, baseB);
+        applyColor(baseR, baseG, baseB, true);
     } else if (mode == LED_MODE_SINE) {
         // start with mid brightness
-        curR = baseR; curG = baseG; curB = baseB;
+        curR = baseR;
+        curG = baseG;
+        curB = baseB;
     } else if (mode == LED_MODE_RAINBOW) {
         // nothing immediate
     }
@@ -108,13 +151,17 @@ void led_set_from_bytes(const uint8_t* data, size_t len) {
         cf_startR = (uint8_t)constrain(roundf(curR), 0, 255);
         cf_startG = (uint8_t)constrain(roundf(curG), 0, 255);
         cf_startB = (uint8_t)constrain(roundf(curB), 0, 255);
-        cf_targetR = r; cf_targetG = g; cf_targetB = b;
+        cf_targetR = r;
+        cf_targetG = g;
+        cf_targetB = b;
         cf_startTime = millis();
         cf_duration = dur;
         inCrossfade = true;
         // set mode to crossfade while preserving base color
         mode = LED_MODE_CROSSFADE;
-        baseR = r; baseG = g; baseB = b;
+        baseR = r;
+        baseG = g;
+        baseB = b;
     } else {
         led_set(m, r, g, b);
     }
@@ -130,16 +177,20 @@ void led_get_state(uint8_t out[4]) {
 void led_update() {
     uint32_t now = millis();
     // limit update rate
-    if (now - lastUpdate < 16) return; // ~60Hz
+    if (now - lastUpdate < 16) return;  // ~60Hz
     lastUpdate = now;
 
     if (inCrossfade) {
         if (cf_duration == 0) {
             // immediate
-            curR = cf_targetR; curG = cf_targetG; curB = cf_targetB;
+            curR = cf_targetR;
+            curG = cf_targetG;
+            curB = cf_targetB;
             inCrossfade = false;
             mode = LED_MODE_ON;
-            baseR = cf_targetR; baseG = cf_targetG; baseB = cf_targetB;
+            baseR = cf_targetR;
+            baseG = cf_targetG;
+            baseB = cf_targetB;
             applyColor(curR, curG, curB);
             // notify client crossfade done
             ble_notify_led_done();
@@ -147,10 +198,14 @@ void led_update() {
         }
         uint32_t elapsed = now - cf_startTime;
         if (elapsed >= cf_duration) {
-            curR = cf_targetR; curG = cf_targetG; curB = cf_targetB;
+            curR = cf_targetR;
+            curG = cf_targetG;
+            curB = cf_targetB;
             inCrossfade = false;
             mode = LED_MODE_ON;
-            baseR = cf_targetR; baseG = cf_targetG; baseB = cf_targetB;
+            baseR = cf_targetR;
+            baseG = cf_targetG;
+            baseB = cf_targetB;
             applyColor(curR, curG, curB);
             // notify client crossfade done
             ble_notify_led_done();
@@ -167,7 +222,7 @@ void led_update() {
     switch (mode) {
         case LED_MODE_OFF:
             // ensure off
-            applyColor(0,0,0);
+            applyColor(0, 0, 0);
             break;
         case LED_MODE_ON:
             applyColor(baseR, baseG, baseB);
@@ -177,31 +232,33 @@ void led_update() {
                 lastFlashToggle = now;
                 flashOn = !flashOn;
             }
-            if (flashOn) applyColor(baseR, baseG, baseB);
-            else applyColor(0,0,0);
+            if (flashOn)
+                applyColor(baseR, baseG, baseB, true);
+            else
+                applyColor(0, 0, 0, true);
             break;
         }
         case LED_MODE_SINE: {
-            float phase = (float)(now % 1000000) / 1000.0f; // ms to seconds
+            float phase = (float)(now % 1000000) / 1000.0f;  // ms to seconds
             float t = phase * SINE_FREQ_HZ * 2.0f * 3.14159265f;
-            float brightness = (sinf(t) + 1.0f) / 2.0f; // 0..1
+            float brightness = (sinf(t) + 1.0f) / 2.0f;  // 0..1
             float r = baseR * brightness;
             float g = baseG * brightness;
             float b = baseB * brightness;
-            applyColor(r,g,b);
+            applyColor(r, g, b, true);
             break;
         }
         case LED_MODE_RAINBOW: {
             uint32_t pos = now % RAINBOW_PERIOD_MS;
-            float hue = (360.0f * pos) / (float)RAINBOW_PERIOD_MS; // 0..360
-            uint8_t r,g,b;
+            float hue = (360.0f * pos) / (float)RAINBOW_PERIOD_MS;  // 0..360
+            uint8_t r, g, b;
             hsv_to_rgb(hue, 1.0f, 1.0f, r, g, b);
-            applyColor(r,g,b);
+            applyColor(r, g, b, true);
             break;
         }
         default:
             // unknown -> off
-            applyColor(0,0,0);
+            applyColor(0, 0, 0);
             break;
     }
 }

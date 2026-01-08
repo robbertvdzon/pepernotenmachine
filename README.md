@@ -1,6 +1,6 @@
 # Launcher (TOETER) — ESP32 Feather project
 
-This project runs on an Adafruit Feather ESP32 and provides motor, horn, button and NeoPixel LED control over BLE. It was built with PlatformIO (Arduino framework) and uses the ESP32 BLE Arduino and Adafruit NeoPixel libraries.
+This project runs on an Adafruit Feather ESP32 and provides motor, horn, button and NeoPixel LED control over BLE. It is built with PlatformIO (Arduino framework) and uses the NimBLE-Arduino (lightweight BLE) and Adafruit NeoPixel libraries.
 
 ## Features
 
@@ -84,6 +84,15 @@ Key files and modules:
 - `include/ble_manager.h`, `src/ble_manager.cpp` — BLE service and characteristics wiring.
 
 All modules use small C-style callbacks to forward BLE writes to the appropriate subsystem.
+
+### Notes about BLE implementation
+
+- The project was migrated from the Bluedroid-based ESP32 BLE Arduino stack to NimBLE (NimBLE-Arduino) to reduce flash usage. NimBLE is functionally equivalent for GATT server use (read/write/notify) and is significantly smaller.
+- Size impact seen in this workspace (approximate, measured after migration):
+  - Before (Bluedroid build): ~1,168 KB total firmware
+  - After (NimBLE build): ~632 KB total firmware
+- `platformio.ini` now includes `h2zero/NimBLE-Arduino` as a dependency.
+- The code explicitly adds the Client Characteristic Configuration (CCC) descriptor (UUID 0x2902) for the Button and LED characteristics so clients that look for that descriptor object will find it. NimBLE normally handles notify/indicate behavior, but the explicit descriptor improves compatibility with some clients.
 
 ## Build & Upload (PlatformIO)
 

@@ -4,6 +4,7 @@
 #include "../include/button.h"
 #include "../include/horn.h"
 #include "../include/ble_manager.h"
+#include "../include/led.h"
 #include <Arduino.h>
 
 // callbacks forwarded from BLE manager
@@ -26,13 +27,13 @@ void setup() {
 
     motor_init();
     horn_init();
+    led_init();
 
     // initialize BLE with callbacks
     ble_init(motor_write_cb, horn_write_cb);
 
     // initialize button handling and set notification callback
     button_init(button_notify_cb);
-
 }
 
 void loop() {
@@ -40,6 +41,8 @@ void loop() {
     button_update();
     // Service horn auto-off and other horn tasks
     horn_update();
+    // service LED non-blocking effects
+    led_update();
 
     // short yield
     vTaskDelay(1 / portTICK_PERIOD_MS);
