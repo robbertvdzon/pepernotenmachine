@@ -34,31 +34,42 @@ static uint32_t cf_duration = 0;  // ms
 
 static uint32_t lastUpdate = 0;
 
-// Track last color written to the strip to avoid unnecessary repeated writes which
-// can cause visible flicker when the color is stable.
-static uint8_t lastAppliedR = 0, lastAppliedG = 0, lastAppliedB = 0;
-static bool lastAppliedInitialized = false;
+// Separate requested pixel buffer from the actual NeoPixel write (strip.show()).
+// BLE callbacks may call led_set()/led_set_from_bytes() from other threads,
+// so we must avoid calling strip.show() outside the main loop to prevent
+// timing glitches. `bufferColor()` updates the pixel buffer and marks it
+// dirty; `flushIfNeeded()` performs the actual show from `led_update()`.
+static uint8_t requestedR = 0, requestedG = 0, requestedB = 0;
+static volatile bool requestedDirty = false;
 
-static void applyColor(float r, float g, float b, bool forceShow = true) {
-    // clamp to byte
+static uint8_t lastShownR = 0, lastShownG = 0, lastShownB = 0;
+static bool lastShownInitialized = false;
+
+static void bufferColor(float r, float g, float b, bool force = false) {
     uint8_t R = (uint8_t)constrain(roundf(r), 0, 255);
     uint8_t G = (uint8_t)constrain(roundf(g), 0, 255);
     uint8_t B = (uint8_t)constrain(roundf(b), 0, 255);
 
-    // if color hasn't changed and caller didn't force a show, skip the expensive strip.show()
-    if (!forceShow && lastAppliedInitialized && R == lastAppliedR && G == lastAppliedG && B == lastAppliedB) {
-        // still set the pixel color in case other code reads it before next show
-        strip.setPixelColor(0, strip.Color(R, G, B));
-        return;
-    }
-
+    // update pixel buffer (no show)
     strip.setPixelColor(0, strip.Color(R, G, B));
-    strip.show();
 
-    lastAppliedR = R;
-    lastAppliedG = G;
-    lastAppliedB = B;
-    lastAppliedInitialized = true;
+    // mark dirty if different from last shown, or if caller forces a show
+    if (!lastShownInitialized || R != lastShownR || G != lastShownG || B != lastShownB || force) {
+        requestedR = R;
+        requestedG = G;
+        requestedB = B;
+        requestedDirty = true;
+    }
+}
+
+static void flushIfNeeded() {
+    if (!requestedDirty) return;
+    strip.show();
+    lastShownR = requestedR;
+    lastShownG = requestedG;
+    lastShownB = requestedB;
+    lastShownInitialized = true;
+    requestedDirty = false;
 }
 
 static void hsv_to_rgb(float h, float s, float v, uint8_t& r, uint8_t& g, uint8_t& b) {
@@ -117,16 +128,16 @@ void led_set(uint8_t m, uint8_t r, uint8_t g, uint8_t b) {
     // set immediate color depending on mode
     if (mode == LED_MODE_OFF) {
         curR = curG = curB = 0;
-        applyColor(0, 0, 0, true);
+        bufferColor(0, 0, 0, true);
     } else if (mode == LED_MODE_ON) {
         curR = baseR;
         curG = baseG;
         curB = baseB;
-        applyColor(curR, curG, curB, true);
+        bufferColor(curR, curG, curB, true);
     } else if (mode == LED_MODE_FLASH) {
         lastFlashToggle = millis();
         flashOn = true;
-        applyColor(baseR, baseG, baseB, true);
+        bufferColor(baseR, baseG, baseB, true);
     } else if (mode == LED_MODE_SINE) {
         // start with mid brightness
         curR = baseR;
@@ -162,6 +173,7 @@ void led_set_from_bytes(const uint8_t* data, size_t len) {
         baseR = r;
         baseG = g;
         baseB = b;
+        ble_notify_led_crossfade_started();
     } else {
         led_set(m, r, g, b);
     }
@@ -191,9 +203,9 @@ void led_update() {
             baseR = cf_targetR;
             baseG = cf_targetG;
             baseB = cf_targetB;
-            applyColor(curR, curG, curB);
-            // notify client crossfade done
-            ble_notify_led_done();
+            bufferColor(curR, curG, curB, true);
+            flushIfNeeded();
+            ble_notify_led_crossfade_done();
             return;
         }
         uint32_t elapsed = now - cf_startTime;
@@ -206,26 +218,27 @@ void led_update() {
             baseR = cf_targetR;
             baseG = cf_targetG;
             baseB = cf_targetB;
-            applyColor(curR, curG, curB);
-            // notify client crossfade done
-            ble_notify_led_done();
+            bufferColor(curR, curG, curB, true);
+            flushIfNeeded();
+            ble_notify_led_crossfade_done();
             return;
         }
         float t = (float)elapsed / (float)cf_duration;
         curR = (1.0f - t) * cf_startR + t * cf_targetR;
         curG = (1.0f - t) * cf_startG + t * cf_targetG;
         curB = (1.0f - t) * cf_startB + t * cf_targetB;
-        applyColor(curR, curG, curB);
+        bufferColor(curR, curG, curB, true);
+        flushIfNeeded();
         return;
     }
 
     switch (mode) {
         case LED_MODE_OFF:
             // ensure off
-            applyColor(0, 0, 0);
+            bufferColor(0, 0, 0, false);
             break;
         case LED_MODE_ON:
-            applyColor(baseR, baseG, baseB);
+            bufferColor(baseR, baseG, baseB, false);
             break;
         case LED_MODE_FLASH: {
             if ((now - lastFlashToggle) >= FLASH_MS) {
@@ -233,9 +246,9 @@ void led_update() {
                 flashOn = !flashOn;
             }
             if (flashOn)
-                applyColor(baseR, baseG, baseB, true);
+                bufferColor(baseR, baseG, baseB, true);
             else
-                applyColor(0, 0, 0, true);
+                bufferColor(0, 0, 0, true);
             break;
         }
         case LED_MODE_SINE: {
@@ -245,7 +258,7 @@ void led_update() {
             float r = baseR * brightness;
             float g = baseG * brightness;
             float b = baseB * brightness;
-            applyColor(r, g, b, true);
+            bufferColor(r, g, b, true);
             break;
         }
         case LED_MODE_RAINBOW: {
@@ -253,12 +266,14 @@ void led_update() {
             float hue = (360.0f * pos) / (float)RAINBOW_PERIOD_MS;  // 0..360
             uint8_t r, g, b;
             hsv_to_rgb(hue, 1.0f, 1.0f, r, g, b);
-            applyColor(r, g, b, true);
+            bufferColor(r, g, b, true);
             break;
         }
         default:
             // unknown -> off
-            applyColor(0, 0, 0);
+            bufferColor(0, 0, 0, false);
             break;
     }
+    // flush any pending pixel buffer updates (per-frame)
+    flushIfNeeded();
 }

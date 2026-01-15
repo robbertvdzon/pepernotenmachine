@@ -8,8 +8,8 @@
 #include <Arduino.h>
 
 // callbacks forwarded from BLE manager
-static void motor_write_cb(uint32_t halfPeriodUs) {
-    motor_set_delay_us(halfPeriodUs);
+static void motor_write_cb(int32_t speed) {
+    motor_set_speed(speed);
 }
 
 static void horn_write_cb(bool on) {
