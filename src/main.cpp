@@ -38,5 +38,5 @@ void setup() {
 
 void loop() {
     // short yield to allow other tasks to execute
-    vTaskDelay(1 / portTICK_PERIOD_MS);
+    vTaskDelay(10 / portTICK_PERIOD_MS);
 }

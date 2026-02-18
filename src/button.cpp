@@ -1,28 +1,47 @@
 #include "../include/button.h"
 #include "../include/config.h"
 #include <Arduino.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
 
 static button_notify_cb_t notify_cb = nullptr;
 static volatile int currentState = HIGH;
-static volatile uint32_t lastInterruptTime = 0;
-static const uint32_t debounceDelay = 20;  // ms
+static volatile TickType_t lastInterruptTick = 0;
+static const TickType_t debounceDelayTicks = pdMS_TO_TICKS(20);  // 20 ms
 
-// ISR: fires on pin change, handles debouncing
+static QueueHandle_t buttonQueue = NULL;
+
+// Button event task: runs in task context and calls notify_cb
+static void button_task(void* pvParameters) {
+    (void)pvParameters;
+    uint8_t payload;
+    for (;;) {
+        if (xQueueReceive(buttonQueue, &payload, portMAX_DELAY) == pdTRUE) {
+            Serial.print("Button ");
+            Serial.println(payload ? "pressed" : "released");
+            if (notify_cb) notify_cb(payload);
+        }
+    }
+}
+
+// ISR: fires on pin change, does minimal work and posts event to queue
 static void IRAM_ATTR button_isr() {
-    uint32_t now = millis();
-    // Debounce: ignore interrupts within 20ms of last one
-    if (now - lastInterruptTime < debounceDelay) {
+    TickType_t now = xTaskGetTickCountFromISR();
+    // Debounce: ignore interrupts within debounce window
+    if ((now - lastInterruptTick) < debounceDelayTicks) {
         return;
     }
-    lastInterruptTime = now;
-    
+    lastInterruptTick = now;
+
     int newState = digitalRead(BUTTON_PIN);
     if (newState != currentState) {
         currentState = newState;
         uint8_t payload = (currentState == HIGH) ? 0 : 1;
-        Serial.print("Button ");
-        Serial.println(payload ? "pressed" : "released");
-        if (notify_cb) notify_cb(payload);
+        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+        if (buttonQueue != NULL) {
+            xQueueSendFromISR(buttonQueue, &payload, &xHigherPriorityTaskWoken);
+            if (xHigherPriorityTaskWoken) portYIELD_FROM_ISR();
+        }
     }
 }
 
@@ -30,8 +49,16 @@ void button_init(button_notify_cb_t cb) {
     notify_cb = cb;
     pinMode(BUTTON_PIN, INPUT_PULLUP);
     currentState = digitalRead(BUTTON_PIN);
-    lastInterruptTime = millis();
-    
+    lastInterruptTick = xTaskGetTickCount();
+
+    // Create queue and task for handling button events
+    if (buttonQueue == NULL) {
+        buttonQueue = xQueueCreate(8, sizeof(uint8_t));
+    }
+    if (buttonQueue != NULL) {
+        xTaskCreate(button_task, "button_task", 2048, NULL, 1, NULL);
+    }
+
     // Attach interrupt on CHANGE (rising or falling edge)
     attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), button_isr, CHANGE);
 }

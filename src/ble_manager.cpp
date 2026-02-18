@@ -14,17 +14,42 @@ static NimBLECharacteristic* pLedCrossFadeStateCharacteristic = nullptr;
 
 static motor_write_cb_t motor_cb = nullptr;
 static horn_write_cb_t horn_cb = nullptr;
-static bool deviceConnected = false;
+static int connectedCount = 0;
+static const int MAX_CONNECTIONS = 3;
+
+// Helper: add Client Characteristic Configuration descriptor (0x2902)
+static void add_ccc_descriptor(NimBLECharacteristic* c) {
+    if (c == nullptr) return;
+    NimBLEDescriptor* d = new NimBLEDescriptor(NimBLEUUID((uint16_t)0x2902), 0, 2, c);
+    uint8_t off[2] = {0x00, 0x00};
+    d->setValue(off, 2);
+    c->addDescriptor(d);
+}
 
 class ServerCallbacks : public NimBLEServerCallbacks {
     void onConnect(NimBLEServer* srv) override {
-        deviceConnected = true;
-        Serial.println("BLE connected");
+        connectedCount++;
+        Serial.print("BLE connected (");
+        Serial.print(connectedCount);
+        Serial.print("/");
+        Serial.print(MAX_CONNECTIONS);
+        Serial.println(")");
+        // continue advertising if we haven't reached the max connections
+        if (connectedCount < MAX_CONNECTIONS) {
+            NimBLEDevice::startAdvertising();
+            Serial.println("Continuing advertising for additional connections");
+        } else {
+            Serial.println("Max connections reached, stopping advertising for now");
+        }
     }
     void onDisconnect(NimBLEServer* srv) override {
-        deviceConnected = false;
-        Serial.println("BLE disconnected");
-        // restart advertising
+        if (connectedCount > 0) connectedCount--;
+        Serial.print("BLE disconnected (");
+        Serial.print(connectedCount);
+        Serial.print("/");
+        Serial.print(MAX_CONNECTIONS);
+        Serial.println(")");
+        // restart advertising to accept new connections
         NimBLEDevice::startAdvertising();
     }
 };
@@ -81,51 +106,29 @@ void ble_init(motor_write_cb_t motorCb, horn_write_cb_t hornCb) {
     pServer->setCallbacks(new ServerCallbacks());
     pService = pServer->createService(SERVICE_UUID);
 
+    // Horn characteristic: read/write
     pMotorCharacteristic =
         pService->createCharacteristic(MOTOR_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::READ);
     pMotorCharacteristic->setCallbacks(new MotorCharCallbacks());
-    // Explicitly add CCC (0x2902) descriptor so older/quirky clients can find it
-    {
-        NimBLEDescriptor* ccc = new NimBLEDescriptor(NimBLEUUID((uint16_t)0x2902), 0, 2, pMotorCharacteristic);
-        uint8_t off[2] = {0x00, 0x00};
-        ccc->setValue(off, 2);
-        pMotorCharacteristic->addDescriptor(ccc);
-    }
+    add_ccc_descriptor(pMotorCharacteristic);
 
+    // Horn characteristic: write
     pHornCharacteristic = pService->createCharacteristic(HORN_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE);
     pHornCharacteristic->setCallbacks(new HornCharCallbacks());
 
+    // Button characteristic: read/notify
     pButtonCharacteristic = pService->createCharacteristic(BUTTON_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ);
-    // Explicitly add CCC (0x2902) descriptor so older/quirky clients can find it
-    {
-        NimBLEDescriptor* ccc = new NimBLEDescriptor(NimBLEUUID((uint16_t)0x2902), 0, 2, pButtonCharacteristic);
-        uint8_t off[2] = {0x00, 0x00};
-        ccc->setValue(off, 2);
-        pButtonCharacteristic->addDescriptor(ccc);
-    }
+    add_ccc_descriptor(pButtonCharacteristic);
 
     // LED characteristic: read/write/notify
     pLedCharacteristic = pService->createCharacteristic(LED_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
-    // Explicitly add CCC (0x2902) descriptor for LED notify
-    {
-        NimBLEDescriptor* ccc2 = new NimBLEDescriptor(NimBLEUUID((uint16_t)0x2902), 0, 2, pLedCharacteristic);
-        uint8_t off2[2] = {0x00, 0x00};
-        ccc2->setValue(off2, 2);
-        pLedCharacteristic->addDescriptor(ccc2);
-    }
+    add_ccc_descriptor(pLedCharacteristic);
     pLedCharacteristic->setCallbacks(new LedCharCallbacks());
 
     // LED crossfade state characteristic: read/notify
     pLedCrossFadeStateCharacteristic = pService->createCharacteristic(
         LED_CROSSFADE_STATE_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
-    // Explicitly add CCC (0x2902) descriptor for crossfade state notify
-    {
-        NimBLEDescriptor* ccc2 =
-            new NimBLEDescriptor(NimBLEUUID((uint16_t)0x2902), 0, 2, pLedCrossFadeStateCharacteristic);
-        uint8_t off2[2] = {0x00, 0x00};
-        ccc2->setValue(off2, 2);
-        pLedCrossFadeStateCharacteristic->addDescriptor(ccc2);
-    }
+    add_ccc_descriptor(pLedCrossFadeStateCharacteristic);
     uint8_t zero = 0; // initial state = not in crossfade
     pLedCrossFadeStateCharacteristic->setValue(&zero, 1);
 
@@ -134,12 +137,11 @@ void ble_init(motor_write_cb_t motorCb, horn_write_cb_t hornCb) {
     NimBLEAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
     pAdvertising->addServiceUUID(SERVICE_UUID);
     pAdvertising->setScanResponse(true);
-    // start advertising
     pAdvertising->start();
 }
 
 bool ble_is_connected() {
-    return deviceConnected;
+    return connectedCount > 0;
 }
 
 void ble_notify_button(uint8_t payload) {
