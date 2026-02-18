@@ -4,6 +4,7 @@
 #include <Adafruit_NeoPixel.h>
 #include <Arduino.h>
 #include <math.h>
+#include <freertos/task.h>
 
 // single pixel
 static Adafruit_NeoPixel strip = Adafruit_NeoPixel(1, LED_PIN, NEO_GRB + NEO_KHZ800);
@@ -32,11 +33,9 @@ static uint8_t cf_targetR = 0, cf_targetG = 0, cf_targetB = 0;
 static uint32_t cf_startTime = 0;
 static uint32_t cf_duration = 0;  // ms
 
-static uint32_t lastUpdate = 0;
-
 // Separate requested pixel buffer from the actual NeoPixel write (strip.show()).
 // BLE callbacks may call led_set()/led_set_from_bytes() from other threads,
-// so we must avoid calling strip.show() outside the main loop to prevent
+// so we must avoid calling strip.show() outside the led task to prevent
 // timing glitches. `bufferColor()` updates the pixel buffer and marks it
 // dirty; `flushIfNeeded()` performs the actual show from `led_update()`.
 static uint8_t requestedR = 0, requestedG = 0, requestedB = 0;
@@ -44,6 +43,8 @@ static volatile bool requestedDirty = false;
 
 static uint8_t lastShownR = 0, lastShownG = 0, lastShownB = 0;
 static bool lastShownInitialized = false;
+
+static TaskHandle_t ledTaskHandle = nullptr;
 
 static void bufferColor(float r, float g, float b, bool force = false) {
     uint8_t R = (uint8_t)constrain(roundf(r), 0, 255);
@@ -109,6 +110,102 @@ static void hsv_to_rgb(float h, float s, float v, uint8_t& r, uint8_t& g, uint8_
     b = (uint8_t)constrain(roundf((bb + m) * 255.0f), 0, 255);
 }
 
+// Internal update logic: runs in dedicated FreeRTOS task
+static void led_update_internal() {
+    uint32_t now = millis();
+
+    if (inCrossfade) {
+        if (cf_duration == 0) {
+            // immediate
+            curR = cf_targetR;
+            curG = cf_targetG;
+            curB = cf_targetB;
+            inCrossfade = false;
+            mode = LED_MODE_ON;
+            baseR = cf_targetR;
+            baseG = cf_targetG;
+            baseB = cf_targetB;
+            bufferColor(curR, curG, curB, true);
+            flushIfNeeded();
+            ble_notify_led_crossfade_done();
+            return;
+        }
+        uint32_t elapsed = now - cf_startTime;
+        if (elapsed >= cf_duration) {
+            curR = cf_targetR;
+            curG = cf_targetG;
+            curB = cf_targetB;
+            inCrossfade = false;
+            mode = LED_MODE_ON;
+            baseR = cf_targetR;
+            baseG = cf_targetG;
+            baseB = cf_targetB;
+            bufferColor(curR, curG, curB, true);
+            flushIfNeeded();
+            ble_notify_led_crossfade_done();
+            return;
+        }
+        float t = (float)elapsed / (float)cf_duration;
+        curR = (1.0f - t) * cf_startR + t * cf_targetR;
+        curG = (1.0f - t) * cf_startG + t * cf_targetG;
+        curB = (1.0f - t) * cf_startB + t * cf_targetB;
+        bufferColor(curR, curG, curB, true);
+        flushIfNeeded();
+        return;
+    }
+
+    switch (mode) {
+        case LED_MODE_OFF:
+            bufferColor(0, 0, 0, false);
+            break;
+        case LED_MODE_ON:
+            bufferColor(baseR, baseG, baseB, false);
+            break;
+        case LED_MODE_FLASH: {
+            if ((now - lastFlashToggle) >= FLASH_MS) {
+                lastFlashToggle = now;
+                flashOn = !flashOn;
+            }
+            if (flashOn)
+                bufferColor(baseR, baseG, baseB, true);
+            else
+                bufferColor(0, 0, 0, true);
+            break;
+        }
+        case LED_MODE_SINE: {
+            float phase = (float)(now % 1000000) / 1000.0f;  // ms to seconds
+            float t = phase * SINE_FREQ_HZ * 2.0f * M_PI;
+            float brightness = (sinf(t) + 1.0f) / 2.0f;  // 0..1
+            float r = baseR * brightness;
+            float g = baseG * brightness;
+            float b = baseB * brightness;
+            bufferColor(r, g, b, true);
+            break;
+        }
+        case LED_MODE_RAINBOW: {
+            uint32_t pos = now % RAINBOW_PERIOD_MS;
+            float hue = (360.0f * pos) / (float)RAINBOW_PERIOD_MS;  // 0..360
+            uint8_t r, g, b;
+            hsv_to_rgb(hue, 1.0f, 1.0f, r, g, b);
+            bufferColor(r, g, b, true);
+            break;
+        }
+        default:
+            bufferColor(0, 0, 0, false);
+            break;
+    }
+    flushIfNeeded();
+}
+
+// FreeRTOS task: runs LED update loop at ~60Hz
+static void led_task_runner(void* pvParameters) {
+    (void)pvParameters;
+    while (1) {
+        led_update_internal();
+        vTaskDelay(pdMS_TO_TICKS(16));  // ~60Hz
+    }
+}
+
 void led_init() {
     pinMode(LED_POWER_PIN, OUTPUT);
     digitalWrite(LED_POWER_PIN, HIGH);
@@ -118,6 +215,16 @@ void led_init() {
     baseR = baseG = baseB = 0;
     curR = curG = curB = 0;
     inCrossfade = false;
+
+    // Create FreeRTOS task for LED rendering at ~60Hz
+    xTaskCreate(
+        led_task_runner,     // task function
+        "led_update",        // task name
+        2048,                // stack size (bytes)
+        nullptr,             // task parameter
+        1,                   // priority (0 = idle, higher = more important)
+        &ledTaskHandle       // task handle output
+    );
 }
 
 void led_set(uint8_t m, uint8_t r, uint8_t g, uint8_t b) {
@@ -186,96 +293,4 @@ void led_get_state(uint8_t out[4]) {
     out[1] = baseR;
     out[2] = baseG;
     out[3] = baseB;
-}
-
-void led_update() {
-    uint32_t now = millis();
-    // limit update rate
-    if (now - lastUpdate < 16) return;  // ~60Hz
-    lastUpdate = now;
-
-    if (inCrossfade) {
-        if (cf_duration == 0) {
-            // immediate
-            curR = cf_targetR;
-            curG = cf_targetG;
-            curB = cf_targetB;
-            inCrossfade = false;
-            mode = LED_MODE_ON;
-            baseR = cf_targetR;
-            baseG = cf_targetG;
-            baseB = cf_targetB;
-            bufferColor(curR, curG, curB, true);
-            flushIfNeeded();
-            ble_notify_led_crossfade_done();
-            return;
-        }
-        uint32_t elapsed = now - cf_startTime;
-        if (elapsed >= cf_duration) {
-            curR = cf_targetR;
-            curG = cf_targetG;
-            curB = cf_targetB;
-            inCrossfade = false;
-            mode = LED_MODE_ON;
-            baseR = cf_targetR;
-            baseG = cf_targetG;
-            baseB = cf_targetB;
-            bufferColor(curR, curG, curB, true);
-            flushIfNeeded();
-            ble_notify_led_crossfade_done();
-            return;
-        }
-        float t = (float)elapsed / (float)cf_duration;
-        curR = (1.0f - t) * cf_startR + t * cf_targetR;
-        curG = (1.0f - t) * cf_startG + t * cf_targetG;
-        curB = (1.0f - t) * cf_startB + t * cf_targetB;
-        bufferColor(curR, curG, curB, true);
-        flushIfNeeded();
-        return;
-    }
-
-    switch (mode) {
-        case LED_MODE_OFF:
-            // ensure off
-            bufferColor(0, 0, 0, false);
-            break;
-        case LED_MODE_ON:
-            bufferColor(baseR, baseG, baseB, false);
-            break;
-        case LED_MODE_FLASH: {
-            if ((now - lastFlashToggle) >= FLASH_MS) {
-                lastFlashToggle = now;
-                flashOn = !flashOn;
-            }
-            if (flashOn)
-                bufferColor(baseR, baseG, baseB, true);
-            else
-                bufferColor(0, 0, 0, true);
-            break;
-        }
-        case LED_MODE_SINE: {
-            float phase = (float)(now % 1000000) / 1000.0f;  // ms to seconds
-            float t = phase * SINE_FREQ_HZ * 2.0f * 3.14159265f;
-            float brightness = (sinf(t) + 1.0f) / 2.0f;  // 0..1
-            float r = baseR * brightness;
-            float g = baseG * brightness;
-            float b = baseB * brightness;
-            bufferColor(r, g, b, true);
-            break;
-        }
-        case LED_MODE_RAINBOW: {
-            uint32_t pos = now % RAINBOW_PERIOD_MS;
-            float hue = (360.0f * pos) / (float)RAINBOW_PERIOD_MS;  // 0..360
-            uint8_t r, g, b;
-            hsv_to_rgb(hue, 1.0f, 1.0f, r, g, b);
-            bufferColor(r, g, b, true);
-            break;
-        }
-        default:
-            // unknown -> off
-            bufferColor(0, 0, 0, false);
-            break;
-    }
-    // flush any pending pixel buffer updates (per-frame)
-    flushIfNeeded();
 }

@@ -37,9 +37,6 @@ void setup() {
 }
 
 void loop() {
-    // service LED non-blocking effects
-    led_update();
-
-    // short yield
+    // short yield to allow other tasks to execute
     vTaskDelay(1 / portTICK_PERIOD_MS);
 }
