@@ -5,5 +5,4 @@
 typedef void (*button_notify_cb_t)(uint8_t payload);
 
 void button_init(button_notify_cb_t cb);
-void button_update();
 uint8_t button_get_state();

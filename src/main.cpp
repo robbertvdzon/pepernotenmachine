@@ -37,8 +37,6 @@ void setup() {
 }
 
 void loop() {
-    // Keep button handling responsive and non-blocking
-    button_update();
     // Service horn auto-off and other horn tasks
     horn_update();
     // service LED non-blocking effects
