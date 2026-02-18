@@ -110,6 +110,8 @@ static void hsv_to_rgb(float h, float s, float v, uint8_t& r, uint8_t& g, uint8_
 }
 
 void led_init() {
+    pinMode(LED_POWER_PIN, OUTPUT);
+    digitalWrite(LED_POWER_PIN, HIGH);
     strip.begin();
     strip.show();
     mode = LED_MODE_OFF;

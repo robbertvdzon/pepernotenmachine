@@ -7,7 +7,8 @@ static const int MOTOR_DIR_PIN = 20;
 static const int MOTOR_ENA_PIN = 22;
 static const int HORN_PIN = 32;
 static const int BUTTON_PIN = 38;
-static const int LED_PIN = 13;
+static const int LED_PIN = 0;
+static const int LED_POWER_PIN = 2;
 
 // BLE UUIDs
 #define SERVICE_UUID "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
