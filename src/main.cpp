@@ -37,8 +37,6 @@ void setup() {
 }
 
 void loop() {
-    // Service horn auto-off and other horn tasks
-    horn_update();
     // service LED non-blocking effects
     led_update();
 
