@@ -11,9 +11,13 @@ static NimBLECharacteristic* pHornCharacteristic = nullptr;
 static NimBLECharacteristic* pButtonCharacteristic = nullptr;
 static NimBLECharacteristic* pLedCharacteristic = nullptr;
 static NimBLECharacteristic* pLedCrossFadeStateCharacteristic = nullptr;
+static NimBLECharacteristic* pServoCharacteristic = nullptr;
+static NimBLECharacteristic* pRoutineCharacteristic = nullptr;
 
 static motor_write_cb_t motor_cb = nullptr;
 static horn_write_cb_t horn_cb = nullptr;
+static servo_write_cb_t servo_cb = nullptr;
+static routine_write_cb_t routine_cb = nullptr;
 static int connectedCount = 0;
 static const int MAX_CONNECTIONS = 3;
 
@@ -97,16 +101,44 @@ class HornCharCallbacks : public NimBLECharacteristicCallbacks {
     }
 };
 
-void ble_init(motor_write_cb_t motorCb, horn_write_cb_t hornCb) {
+class ServoCharCallbacks : public NimBLECharacteristicCallbacks {
+    void onWrite(NimBLECharacteristic* c) override {
+        Serial.println("Received write to servo characteristic");
+        NimBLEAttValue v = c->getValue();
+        Serial.print("Value size: "); Serial.println(v.size());
+        if (v.size() < 1) return;
+        uint8_t angle = v.data()[0];
+        if (angle > 180) angle = 180;
+        if (servo_cb) servo_cb(angle);
+        // update characteristic so a read returns the latest value
+        pServoCharacteristic->setValue(&angle, 1);
+    }
+};
+
+class RoutineCharCallbacks : public NimBLECharacteristicCallbacks {
+    void onWrite(NimBLECharacteristic* c) override {
+        Serial.println("Received write to routine characteristic");
+        NimBLEAttValue v = c->getValue();
+        Serial.print("Value size: ");
+        Serial.println(v.size());
+        if (v.size() == 0) return;
+        bool on = (v.data()[0] != 0);
+        if (routine_cb) routine_cb();
+    }
+};
+
+void ble_init(motor_write_cb_t motorCb, horn_write_cb_t hornCb, servo_write_cb_t servoCb, routine_write_cb_t routineCb) {
     motor_cb = motorCb;
     horn_cb = hornCb;
+    servo_cb = servoCb;
+    routine_cb = routineCb;
 
     NimBLEDevice::init("TOETER BLE");
     pServer = NimBLEDevice::createServer();
     pServer->setCallbacks(new ServerCallbacks());
     pService = pServer->createService(SERVICE_UUID);
 
-    // Horn characteristic: read/write
+    // Motor characteristic: read/write
     pMotorCharacteristic =
         pService->createCharacteristic(MOTOR_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::READ);
     pMotorCharacteristic->setCallbacks(new MotorCharCallbacks());
@@ -115,6 +147,13 @@ void ble_init(motor_write_cb_t motorCb, horn_write_cb_t hornCb) {
     // Horn characteristic: write
     pHornCharacteristic = pService->createCharacteristic(HORN_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE);
     pHornCharacteristic->setCallbacks(new HornCharCallbacks());
+
+    // Servo characteristic: read/write
+    pServoCharacteristic = pService->createCharacteristic(SERVO_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::READ);
+    pServoCharacteristic->setCallbacks(new ServoCharCallbacks());
+    add_ccc_descriptor(pServoCharacteristic);
+    uint8_t initAngle = 0;
+    pServoCharacteristic->setValue(&initAngle, 1);
 
     // Button characteristic: read/notify
     pButtonCharacteristic = pService->createCharacteristic(BUTTON_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ);
@@ -131,6 +170,10 @@ void ble_init(motor_write_cb_t motorCb, horn_write_cb_t hornCb) {
     add_ccc_descriptor(pLedCrossFadeStateCharacteristic);
     uint8_t zero = 0; // initial state = not in crossfade
     pLedCrossFadeStateCharacteristic->setValue(&zero, 1);
+
+    // Routine characteristic: write
+    pRoutineCharacteristic = pService->createCharacteristic(ROUTINE_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE);
+    pRoutineCharacteristic->setCallbacks(new RoutineCharCallbacks());
 
     pService->start();
 

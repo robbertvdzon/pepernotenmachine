@@ -6,10 +6,11 @@ This project runs on an Adafruit Feather ESP32 and provides motor, horn, button 
 
 - Stepper motor control (step pulses generated using ESP32 LEDC PWM)
 - Horn toggle control
+- Servo motor control (angle 0‑180°) via BLE
 - Physical push-button with notify on press/release
 - Single NeoPixel LED (onboard/external) with multiple non-blocking effects and crossfade support
-- BLE service exposing characteristics to control motor, horn and LED and to receive button notifications
-- Modular structure: `motor`, `button`, `horn`, `led`, `ble_manager` modules
+- BLE service exposing characteristics to control motor, horn, servo and LED and to receive button notifications
+- Modular structure: `motor`, `button`, `horn`, `servo`, `led`, `ble_manager` modules
 
 ## Hardware / Wiring
 
@@ -21,6 +22,7 @@ Pins are defined centrally in `include/config.h`. Defaults in this repo:
 - HORN_PIN: 32
 - BUTTON_PIN: 38
 - LED_PIN: 13 (NeoPixel data)
+- SERVO_PIN: 15 (PWM signal to servo)
 
 Adjust pins in `include/config.h` if your wiring differs.
 
@@ -51,6 +53,12 @@ Characteristics (UUIDs and payloads):
 - Recommended: subscribe to notifications on connect to observe presses/releases
 
 4) LED characteristic (read + write + notify)
+
+5) Servo angle characteristic (read + write)
+- UUID: beb5483e-36e1-4688-b7f5-ea07361b26ad
+- Payload: 1 byte 0‑180 (angle in degrees)
+- Writing moves the servo; reading returns the last programmed angle.  A client may write any value 0‑180 and the value will be clamped.
+
 - UUID: beb5483e-36e1-4688-b7f5-ea07361b26ab
 - Read value: 4 bytes [mode, R, G, B]
 - Write payloads:

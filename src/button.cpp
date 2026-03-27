@@ -27,23 +27,22 @@ static void button_task(void* pvParameters) {
 // ISR: fires on pin change, does minimal work and posts event to queue
 static void IRAM_ATTR button_isr() {
     TickType_t now = xTaskGetTickCountFromISR();
-    // Debounce: ignore interrupts within debounce window
-    if ((now - lastInterruptTick) < debounceDelayTicks) {
-        return;
-    }
-    lastInterruptTick = now;
-
     int newState = digitalRead(BUTTON_PIN);
-    if (newState != currentState) {
+
+    // only handle a state change if it has been stable longer than debounce delay
+    if (newState != currentState && (now - lastInterruptTick) >= debounceDelayTicks) {
+        lastInterruptTick = now;
         currentState = newState;
-        uint8_t payload = (currentState == HIGH) ? 0 : 1;
+
+        uint8_t payload = (currentState == LOW) ? 1 : 0; // 1=pressed, 0=released
         BaseType_t xHigherPriorityTaskWoken = pdFALSE;
         if (buttonQueue != NULL) {
             xQueueSendFromISR(buttonQueue, &payload, &xHigherPriorityTaskWoken);
             if (xHigherPriorityTaskWoken) portYIELD_FROM_ISR();
         }
     }
-}
+}    
+
 
 void button_init(button_notify_cb_t cb) {
     notify_cb = cb;
