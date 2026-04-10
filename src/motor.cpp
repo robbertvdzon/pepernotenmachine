@@ -50,8 +50,7 @@ void motor_set_speed(int32_t speed) {
     // speed = 512 -> frequency = 16000 Hz (fastest)
     uint32_t newFreq = (speed * 16000UL) / MOTOR_SPEED_MAX;
 
-    ledcSetup(PWM_CHANNEL, newFreq, PWM_RESOLUTION);
-    ledcWrite(PWM_CHANNEL, PWM_DEFAULT_DUTY);
+    ledcWriteTone(PWM_CHANNEL, newFreq);
 }
 
 void motor_set_direction(bool forward) {

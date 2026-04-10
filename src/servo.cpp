@@ -7,8 +7,6 @@ static Servo servo;
 static uint8_t currentAngle = 0;
 
 void servo_init() {
-    // attach servo to configured pin and move to initial position
-    servo.setPeriodHertz(50); // explicitly 50Hz refresh for servo
     servo.attach(SERVO_PIN);
     servo.write(currentAngle);
     Serial.print("Servo initialized on pin ");

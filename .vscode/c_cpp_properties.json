@@ -10,6 +10,7 @@
             "includePath": [
                 "/Users/ferryspiering/Documents/PlatformIO/Projects/launcher/include",
                 "/Users/ferryspiering/Documents/PlatformIO/Projects/launcher/src",
+                "/Users/ferryspiering/Documents/PlatformIO/Projects/launcher/.pio/libdeps/featheresp32/ESP32Servo/src",
                 "/Users/ferryspiering/Documents/PlatformIO/Projects/launcher/.pio/libdeps/featheresp32/NimBLE-Arduino/src",
                 "/Users/ferryspiering/Documents/PlatformIO/Projects/launcher/.pio/libdeps/featheresp32/Adafruit NeoPixel",
                 "/Users/ferryspiering/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/newlib/platform_include",
@@ -248,6 +249,7 @@
                 "path": [
                     "/Users/ferryspiering/Documents/PlatformIO/Projects/launcher/include",
                     "/Users/ferryspiering/Documents/PlatformIO/Projects/launcher/src",
+                    "/Users/ferryspiering/Documents/PlatformIO/Projects/launcher/.pio/libdeps/featheresp32/ESP32Servo/src",
                     "/Users/ferryspiering/Documents/PlatformIO/Projects/launcher/.pio/libdeps/featheresp32/NimBLE-Arduino/src",
                     "/Users/ferryspiering/Documents/PlatformIO/Projects/launcher/.pio/libdeps/featheresp32/Adafruit NeoPixel",
                     "/Users/ferryspiering/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/newlib/platform_include",
