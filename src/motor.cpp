@@ -2,8 +2,6 @@
 #include "../include/motor.h"
 #include <Arduino.h>
 
-#define MOTOR_SPEED_MAX 512
-
 static bool enabled = true;
 
 void motor_init() {
@@ -17,7 +15,7 @@ void motor_init() {
     digitalWrite(MOTOR_PUL_PIN, LOW);
 
     // Initialize PWM with default frequency on dedicated channel (channel 7)
-    ledcSetup(PWM_CHANNEL, 1000, PWM_RESOLUTION);
+    ledcSetup(PWM_CHANNEL, MOTOR_DEFAULT_FREQ, PWM_RESOLUTION);
     ledcAttachPin(MOTOR_PUL_PIN, PWM_CHANNEL);
     ledcWrite(PWM_CHANNEL, 0);  // start stopped
     enabled = false;

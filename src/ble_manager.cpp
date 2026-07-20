@@ -13,11 +13,15 @@ static NimBLECharacteristic* pLedCharacteristic = nullptr;
 static NimBLECharacteristic* pLedCrossFadeStateCharacteristic = nullptr;
 static NimBLECharacteristic* pServoCharacteristic = nullptr;
 static NimBLECharacteristic* pRoutineCharacteristic = nullptr;
+static NimBLECharacteristic* pDispenserDurationCharacteristic = nullptr;
+static NimBLECharacteristic* pDispenserControlCharacteristic = nullptr;
 
 static motor_write_cb_t motor_cb = nullptr;
 static horn_write_cb_t horn_cb = nullptr;
 static servo_write_cb_t servo_cb = nullptr;
 static routine_write_cb_t routine_cb = nullptr;
+static dispenser_duration_write_cb_t dispenser_duration_cb = nullptr;
+static dispenser_start_write_cb_t dispenser_start_cb = nullptr;
 static int connectedCount = 0;
 static const int MAX_CONNECTIONS = 3;
 
@@ -69,8 +73,8 @@ class MotorCharCallbacks : public NimBLECharacteristicCallbacks {
                              (static_cast<int32_t>(data[2]) << 8) | (static_cast<int32_t>(data[3]));
 
         // Clamp to allowed range
-        if (speedValue > 512) speedValue = 512;
-        if (speedValue < -512) speedValue = -512;
+        if (speedValue > MOTOR_SPEED_MAX) speedValue = MOTOR_SPEED_MAX;
+        if (speedValue < -MOTOR_SPEED_MAX) speedValue = -MOTOR_SPEED_MAX;
 
         if (motor_cb) motor_cb(speedValue);
 
@@ -108,7 +112,7 @@ class ServoCharCallbacks : public NimBLECharacteristicCallbacks {
         Serial.print("Value size: "); Serial.println(v.size());
         if (v.size() < 1) return;
         uint8_t angle = v.data()[0];
-        if (angle > 180) angle = 180;
+        if (angle > SERVO_MAX_ANGLE) angle = SERVO_MAX_ANGLE;
         if (servo_cb) servo_cb(angle);
         // update characteristic so a read returns the latest value
         pServoCharacteristic->setValue(&angle, 1);
@@ -127,11 +131,34 @@ class RoutineCharCallbacks : public NimBLECharacteristicCallbacks {
     }
 };
 
-void ble_init(motor_write_cb_t motorCb, horn_write_cb_t hornCb, servo_write_cb_t servoCb, routine_write_cb_t routineCb) {
+class DispenserDurationCharCallbacks : public NimBLECharacteristicCallbacks {
+    void onWrite(NimBLECharacteristic* c) override {
+        NimBLEAttValue v = c->getValue();
+        if (v.size() < 1) return;
+        uint8_t duration = v.data()[0];
+        if (dispenser_duration_cb) dispenser_duration_cb(duration);
+        pDispenserDurationCharacteristic->setValue(&duration, 1);
+    }
+};
+
+class DispenserControlCharCallbacks : public NimBLECharacteristicCallbacks {
+    void onWrite(NimBLECharacteristic* c) override {
+        NimBLEAttValue v = c->getValue();
+        if (v.size() < 1) return;
+        uint8_t command = v.data()[0];
+        if (dispenser_start_cb) dispenser_start_cb(command);
+        pDispenserControlCharacteristic->setValue(&command, 1);
+        pDispenserControlCharacteristic->notify();
+    }
+};
+
+void ble_init(motor_write_cb_t motorCb, horn_write_cb_t hornCb, servo_write_cb_t servoCb, routine_write_cb_t routineCb, dispenser_duration_write_cb_t dispenserDurationCb, dispenser_start_write_cb_t dispenserStartCb) {
     motor_cb = motorCb;
     horn_cb = hornCb;
     servo_cb = servoCb;
     routine_cb = routineCb;
+    dispenser_duration_cb = dispenserDurationCb;
+    dispenser_start_cb = dispenserStartCb;
 
     NimBLEDevice::init("TOETER BLE");
     pServer = NimBLEDevice::createServer();
@@ -175,6 +202,20 @@ void ble_init(motor_write_cb_t motorCb, horn_write_cb_t hornCb, servo_write_cb_t
     pRoutineCharacteristic = pService->createCharacteristic(ROUTINE_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE);
     pRoutineCharacteristic->setCallbacks(new RoutineCharCallbacks());
 
+    // Dispenser duration characteristic: read/write
+    pDispenserDurationCharacteristic = pService->createCharacteristic(DISPENSER_DURATION_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::READ);
+    pDispenserDurationCharacteristic->setCallbacks(new DispenserDurationCharCallbacks());
+    add_ccc_descriptor(pDispenserDurationCharacteristic);
+    uint8_t initDuration = DISPENSER_DEFAULT_DURATION; // default duration
+    pDispenserDurationCharacteristic->setValue(&initDuration, 1);
+
+    // Dispenser start characteristic: read/write/notify
+    pDispenserControlCharacteristic = pService->createCharacteristic(DISPENSER_CONTROL_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
+    pDispenserControlCharacteristic->setCallbacks(new DispenserControlCharCallbacks());
+    add_ccc_descriptor(pDispenserControlCharacteristic);
+    uint8_t initStart = 0; // initial state = stopped
+    pDispenserControlCharacteristic->setValue(&initStart, 1);
+
     pService->start();
 
     NimBLEAdvertising* pAdvertising = NimBLEDevice::getAdvertising();
@@ -208,4 +249,12 @@ void ble_notify_led_crossfade_done() {
     uint8_t zero = 0;
     pLedCrossFadeStateCharacteristic->setValue(&zero, 1);
     pLedCrossFadeStateCharacteristic->notify();
+}
+
+void ble_notify_dispenser_start(uint8_t state) {
+    if (pDispenserControlCharacteristic == nullptr) return;
+    Serial.print("Notifying dispenser start state: ");
+    Serial.println(state);
+    pDispenserControlCharacteristic->setValue(&state, 1);
+    pDispenserControlCharacteristic->notify();
 }

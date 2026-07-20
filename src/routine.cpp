@@ -1,7 +1,6 @@
 #include "../include/motor.h"
+#include "../include/config.h"
 #include <Arduino.h>
-
-#define SWITCH_PIN 33
 
 enum RoutineState {
     IDLE,
@@ -24,7 +23,7 @@ static void vTimerCallback(TimerHandle_t xTimer) {
 
 static void IRAM_ATTR switch_isr() {
     TickType_t now = xTaskGetTickCountFromISR();
-    int newState = digitalRead(SWITCH_PIN);
+    int newState = digitalRead(ROUTINE_SWITCH_PIN);
 
     // only handle a state change if it has been stable longer than debounce delay
     if (newState != currentState && (now - lastInterruptTick) >= debounceDelayTicks) {
@@ -43,10 +42,10 @@ static void IRAM_ATTR switch_isr() {
 }
 
 void routine_init() {
-    pinMode(SWITCH_PIN, INPUT_PULLUP);
-    currentState = digitalRead(SWITCH_PIN);
+    pinMode(ROUTINE_SWITCH_PIN, INPUT_PULLUP);
+    currentState = digitalRead(ROUTINE_SWITCH_PIN);
     lastInterruptTick = xTaskGetTickCount();
-    attachInterrupt(digitalPinToInterrupt(SWITCH_PIN), switch_isr, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(ROUTINE_SWITCH_PIN), switch_isr, CHANGE);
 
     moveUpTimer = xTimerCreate("MoveUpTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, vTimerCallback);
 }

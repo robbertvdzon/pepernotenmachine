@@ -16,8 +16,8 @@ void servo_init() {
 }
 
 void servo_set_angle(uint8_t angle) {
-    if (angle > 180) {
-        angle = 180;
+    if (angle > SERVO_MAX_ANGLE) {
+        angle = SERVO_MAX_ANGLE;
     }
     currentAngle = angle;
     servo.write(angle);
