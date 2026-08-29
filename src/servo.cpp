@@ -9,10 +9,6 @@ static uint8_t currentAngle = 0;
 void servo_init() {
     servo.attach(SERVO_PIN);
     servo.write(currentAngle);
-    Serial.print("Servo initialized on pin ");
-    Serial.print(SERVO_PIN);
-    Serial.print(" at angle ");
-    Serial.println(currentAngle);
 }
 
 void servo_set_angle(uint8_t angle) {

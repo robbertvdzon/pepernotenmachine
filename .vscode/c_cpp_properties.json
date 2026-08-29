@@ -489,6 +489,7 @@
             "defines": [
                 "PLATFORMIO=60119",
                 "ARDUINO_FEATHER_ESP32",
+                "BOARD_FEATHER",
                 "HAVE_CONFIG_H",
                 "MBEDTLS_CONFIG_FILE=\"mbedtls/esp_config.h\"",
                 "UNITY_INCLUDE_CONFIG_H",

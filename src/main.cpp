@@ -1,7 +1,8 @@
-#include "../include/config.h"
-#include "../include/servo.h"
+
 #include <Arduino.h>
 
+#include "../include/config.h"
+#include "../include/servo.h"
 #include "../include/motor.h"
 #include "../include/button.h"
 #include "../include/horn.h"
@@ -46,21 +47,24 @@ static void dispenser_notify_cb(uint8_t state) {
 
 void setup() {
     Serial.begin(115200);
-    while (!Serial) {
+     do  {
         ;  // wait for serial port to connect. Needed for native USB
-    }
-    Serial.println("Launcher starting up...");
+        delay(100);
+     } while (!Serial);
 
-    motor_init();
-    horn_init();
-    led_init();
-    servo_init();
-    routine_init();
-    button_init(button_notify_cb);
-    dispenser_init(dispenser_notify_cb);
+     Serial.println("Launcher starting up...");
 
-    // initialize BLE with callbacks (motor, horn, servo)
-    ble_init(motor_write_cb, horn_write_cb, servo_write_cb, routine_write_cb, dispenser_duration_write_cb, dispenser_start_write_cb);
+     motor_init();
+     horn_init();
+     led_init();
+     servo_init();
+     routine_init();
+     button_init(button_notify_cb);
+     dispenser_init(dispenser_notify_cb);
+
+     // initialize BLE with callbacks (motor, horn, servo)
+     ble_init(motor_write_cb, horn_write_cb, servo_write_cb, routine_write_cb, dispenser_duration_write_cb,
+              dispenser_start_write_cb);
 }
 
 void loop() {
