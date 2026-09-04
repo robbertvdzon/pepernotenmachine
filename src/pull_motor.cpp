@@ -1,10 +1,10 @@
 #include "../include/config.h"
-#include "../include/motor.h"
+#include "../include/pull_motor.h"
 #include <Arduino.h>
 
 static bool enabled = true;
 
-void motor_init() {
+void pull_motor_init() {
     pinMode(PULL_MOTOR_PUL_PIN, OUTPUT);
     pinMode(PULL_MOTOR_DIR_PIN, OUTPUT);
     pinMode(PULL_MOTOR_ENA_PIN, OUTPUT);
@@ -21,24 +21,24 @@ void motor_init() {
     enabled = false;
 }
 
-void motor_set_speed(int32_t speed) {
+void pull_motor_set_speed(int32_t speed) {
     // Stop
     if (speed == 0) {
         Serial.println("Pull motor stop");
         ledcWrite(PWM_CHANNEL, 0);
-        motor_enable(false);
+        pull_motor_enable(false);
         return;
     }
 
     // Ensure motor is enabled before moving
-    motor_enable(true);
+    pull_motor_enable(true);
 
     // Direction
     if (speed < 0) {
-        motor_set_direction(false);
+        pull_motor_set_direction(false);
         speed = -speed;
     } else {
-        motor_set_direction(true);
+        pull_motor_set_direction(true);
     }
 
     // Clamp magnitude
@@ -51,9 +51,9 @@ void motor_set_speed(int32_t speed) {
     ledcWriteTone(PWM_CHANNEL, newFreq);
 }
 
-void motor_set_direction(bool forward) { digitalWrite(PULL_MOTOR_DIR_PIN, forward ? LOW : HIGH); }
+void pull_motor_set_direction(bool forward) { digitalWrite(PULL_MOTOR_DIR_PIN, forward ? LOW : HIGH); }
 
-void motor_enable(bool on) {
+void pull_motor_enable(bool on) {
     enabled = on;
     digitalWrite(PULL_MOTOR_ENA_PIN, on ? LOW : HIGH);
 }

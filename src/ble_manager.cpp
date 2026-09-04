@@ -5,16 +5,16 @@
 
 static NimBLEServer* pServer = nullptr;
 static NimBLEService* pService = nullptr;
-static NimBLECharacteristic* pMotorCharacteristic = nullptr;
+static NimBLECharacteristic* pPullMotorCharacteristic = nullptr;
 static NimBLECharacteristic* pButtonCharacteristic = nullptr;
-static NimBLECharacteristic* pServoCharacteristic = nullptr;
-static NimBLECharacteristic* pRoutineCharacteristic = nullptr;
+static NimBLECharacteristic* pReleaseServoCharacteristic = nullptr;
+static NimBLECharacteristic* pSequenceCharacteristic = nullptr;
 static NimBLECharacteristic* pDispenserDurationCharacteristic = nullptr;
 static NimBLECharacteristic* pDispenserControlCharacteristic = nullptr;
 
-static motor_write_cb_t motor_cb = nullptr;
-static servo_write_cb_t servo_cb = nullptr;
-static routine_write_cb_t routine_cb = nullptr;
+static pull_motor_write_cb_t pull_motor_cb = nullptr;
+static release_servo_write_cb_t release_servo_cb = nullptr;
+static sequence_write_cb_t sequence_cb = nullptr;
 static dispenser_duration_write_cb_t dispenser_duration_cb = nullptr;
 static dispenser_start_write_cb_t dispenser_start_cb = nullptr;
 static int connectedCount = 0;
@@ -71,13 +71,13 @@ class MotorCharCallbacks : public NimBLECharacteristicCallbacks {
         if (speedValue > MOTOR_SPEED_MAX) speedValue = MOTOR_SPEED_MAX;
         if (speedValue < -MOTOR_SPEED_MAX) speedValue = -MOTOR_SPEED_MAX;
 
-        if (motor_cb) motor_cb(speedValue);
+        if (pull_motor_cb) pull_motor_cb(speedValue);
 
-        pMotorCharacteristic->setValue(data, v.size());
+        pPullMotorCharacteristic->setValue(data, v.size());
     }
 };
 
-class ServoCharCallbacks : public NimBLECharacteristicCallbacks {
+class ReleaseServoCharCallbacks : public NimBLECharacteristicCallbacks {
     void onWrite(NimBLECharacteristic* c) override {
         Serial.println("Received write to servo characteristic");
         NimBLEAttValue v = c->getValue();
@@ -85,21 +85,21 @@ class ServoCharCallbacks : public NimBLECharacteristicCallbacks {
         if (v.size() < 1) return;
         uint8_t angle = v.data()[0];
         if (angle > SERVO_MAX_ANGLE) angle = SERVO_MAX_ANGLE;
-        if (servo_cb) servo_cb(angle);
+        if (release_servo_cb) release_servo_cb(angle);
         // update characteristic so a read returns the latest value
-        pServoCharacteristic->setValue(&angle, 1);
+        pReleaseServoCharacteristic->setValue(&angle, 1);
     }
 };
 
-class RoutineCharCallbacks : public NimBLECharacteristicCallbacks {
+class SequenceCharCallbacks : public NimBLECharacteristicCallbacks {
     void onWrite(NimBLECharacteristic* c) override {
-        Serial.println("Received write to routine characteristic");
+        Serial.println("Received write to sequence characteristic");
         NimBLEAttValue v = c->getValue();
         Serial.print("Value size: ");
         Serial.println(v.size());
         if (v.size() == 0) return;
         bool on = (v.data()[0] != 0);
-        if (routine_cb) routine_cb();
+        if (sequence_cb) sequence_cb();
     }
 };
 
@@ -124,10 +124,10 @@ class DispenserControlCharCallbacks : public NimBLECharacteristicCallbacks {
     }
 };
 
-void ble_init(motor_write_cb_t motorCb, servo_write_cb_t servoCb, routine_write_cb_t routineCb, dispenser_duration_write_cb_t dispenserDurationCb, dispenser_start_write_cb_t dispenserStartCb) {
-    motor_cb = motorCb;
-    servo_cb = servoCb;
-    routine_cb = routineCb;
+void ble_init(pull_motor_write_cb_t motorCb, release_servo_write_cb_t releaseServoCb, sequence_write_cb_t sequenceCb, dispenser_duration_write_cb_t dispenserDurationCb, dispenser_start_write_cb_t dispenserStartCb) {
+    pull_motor_cb = motorCb;
+    release_servo_cb = releaseServoCb;
+    sequence_cb = sequenceCb;
     dispenser_duration_cb = dispenserDurationCb;
     dispenser_start_cb = dispenserStartCb;
 
@@ -137,25 +137,25 @@ void ble_init(motor_write_cb_t motorCb, servo_write_cb_t servoCb, routine_write_
     pService = pServer->createService(SERVICE_UUID);
 
     // Motor characteristic: read/write
-    pMotorCharacteristic =
-        pService->createCharacteristic(MOTOR_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::READ);
-    pMotorCharacteristic->setCallbacks(new MotorCharCallbacks());
-    add_ccc_descriptor(pMotorCharacteristic);
+    pPullMotorCharacteristic =
+        pService->createCharacteristic(PULL_MOTOR_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::READ);
+    pPullMotorCharacteristic->setCallbacks(new MotorCharCallbacks());
+    add_ccc_descriptor(pPullMotorCharacteristic);
 
     // Servo characteristic: read/write
-    pServoCharacteristic = pService->createCharacteristic(SERVO_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::READ);
-    pServoCharacteristic->setCallbacks(new ServoCharCallbacks());
-    add_ccc_descriptor(pServoCharacteristic);
+    pReleaseServoCharacteristic = pService->createCharacteristic(RELEASE_SERVO_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::READ);
+    pReleaseServoCharacteristic->setCallbacks(new ReleaseServoCharCallbacks());
+    add_ccc_descriptor(pReleaseServoCharacteristic);
     uint8_t initAngle = 0;
-    pServoCharacteristic->setValue(&initAngle, 1);
+    pReleaseServoCharacteristic->setValue(&initAngle, 1);
 
     // Button characteristic: read/notify
     pButtonCharacteristic = pService->createCharacteristic(BUTTON_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ);
     add_ccc_descriptor(pButtonCharacteristic);
 
-    // Routine characteristic: write
-    pRoutineCharacteristic = pService->createCharacteristic(ROUTINE_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE);
-    pRoutineCharacteristic->setCallbacks(new RoutineCharCallbacks());
+    // Sequence characteristic: write
+    pSequenceCharacteristic = pService->createCharacteristic(SEQUENCE_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE);
+    pSequenceCharacteristic->setCallbacks(new SequenceCharCallbacks());
 
     // Dispenser duration characteristic: read/write
     pDispenserDurationCharacteristic = pService->createCharacteristic(DISPENSER_DURATION_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::READ);
