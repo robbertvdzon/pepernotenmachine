@@ -17,19 +17,18 @@ static const int SERVO_PIN = 15;
 static const int ROUTINE_SWITCH_PIN = 33;
 static const int DISPENSER_STEP_PIN = 27;
 
-#elif defined(BOARD_LOLIN32)
+#elif defined(BOARD_ESP32DEV)
 
-// WEMOS LOLIN32
-static const int MOTOR_PUL_PIN = 18;
-static const int MOTOR_DIR_PIN = 19;
-static const int MOTOR_ENA_PIN = 23;
-static const int HORN_PIN = 25;
+static const int MOTOR_PUL_PIN = 14;
+static const int MOTOR_DIR_PIN = 25;
+static const int MOTOR_ENA_PIN = 26;
+static const int HORN_PIN = 4;
 static const int BUTTON_PIN = 32;
-static const int LED_PIN = 26;
-static const int LED_POWER_PIN = 27;
-static const int SERVO_PIN = 13;
+static const int LED_PIN = 13;
+static const int LED_POWER_PIN = 12;
+static const int SERVO_PIN = 15;
 static const int ROUTINE_SWITCH_PIN = 33;
-static const int DISPENSER_STEP_PIN = 14;
+static const int DISPENSER_STEP_PIN = 27;
 
 #else
 

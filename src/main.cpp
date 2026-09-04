@@ -53,6 +53,12 @@ void setup() {
      } while (!Serial);
 
      Serial.println("Launcher starting up...");
+     Serial.printf("Chip: %s\n", ESP.getChipModel());
+     Serial.printf("Revision: %d\n", ESP.getChipRevision());
+     Serial.printf("Cores: %d\n", ESP.getChipCores());
+     Serial.printf("Free heap: %u\n", ESP.getFreeHeap());
+     Serial.printf("PSRAM: %s\n", psramFound() ? "YES" : "NO");
+     Serial.println("");
 
      motor_init();
      horn_init();
