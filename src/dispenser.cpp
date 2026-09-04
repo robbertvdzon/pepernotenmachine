@@ -25,6 +25,9 @@ void dispenser_init(dispenser_notify_cb_t notifyCb) {
     stepper = engine.stepperConnectToPin(DISPENSER_STEP_PIN);
 
     if (stepper) {
+        stepper->setDirectionPin(DISPENSER_DIR_PIN);
+        stepper->setEnablePin(DISPENSER_EN_PIN);
+        stepper->setAutoEnable(true);
         stepper->setAcceleration(DISPENSER_ACCEL_INITIAL);
         stepper->setSpeedInHz(DISPENSER_TOP_SPEED_HZ);
     } else {

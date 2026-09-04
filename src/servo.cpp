@@ -7,7 +7,7 @@ static Servo servo;
 static uint8_t currentAngle = 0;
 
 void servo_init() {
-    servo.attach(SERVO_PIN);
+    servo.attach(RELEASE_SERVO_PIN);
     servo.write(currentAngle);
 }
 

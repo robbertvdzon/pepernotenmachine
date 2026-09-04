@@ -1,23 +1,18 @@
 #include "../include/ble_manager.h"
 #include "../include/config.h"
-#include "../include/led.h"
 #include <NimBLEDevice.h>
 #include <Arduino.h>
 
 static NimBLEServer* pServer = nullptr;
 static NimBLEService* pService = nullptr;
 static NimBLECharacteristic* pMotorCharacteristic = nullptr;
-static NimBLECharacteristic* pHornCharacteristic = nullptr;
 static NimBLECharacteristic* pButtonCharacteristic = nullptr;
-static NimBLECharacteristic* pLedCharacteristic = nullptr;
-static NimBLECharacteristic* pLedCrossFadeStateCharacteristic = nullptr;
 static NimBLECharacteristic* pServoCharacteristic = nullptr;
 static NimBLECharacteristic* pRoutineCharacteristic = nullptr;
 static NimBLECharacteristic* pDispenserDurationCharacteristic = nullptr;
 static NimBLECharacteristic* pDispenserControlCharacteristic = nullptr;
 
 static motor_write_cb_t motor_cb = nullptr;
-static horn_write_cb_t horn_cb = nullptr;
 static servo_write_cb_t servo_cb = nullptr;
 static routine_write_cb_t routine_cb = nullptr;
 static dispenser_duration_write_cb_t dispenser_duration_cb = nullptr;
@@ -82,29 +77,6 @@ class MotorCharCallbacks : public NimBLECharacteristicCallbacks {
     }
 };
 
-class LedCharCallbacks : public NimBLECharacteristicCallbacks {
-    void onWrite(NimBLECharacteristic* c) override {
-        NimBLEAttValue v = c->getValue();
-        if (v.size() < 4) return;
-        // forward raw bytes to led module
-        led_set_from_bytes(reinterpret_cast<const uint8_t*>(v.data()), v.size());
-        // update the characteristic value so clients can read the current state
-        // store as 4-byte state: mode,r,g,b
-        uint8_t state[4];
-        led_get_state(state);
-        c->setValue(state, 4);
-    }
-};
-
-class HornCharCallbacks : public NimBLECharacteristicCallbacks {
-    void onWrite(NimBLECharacteristic* c) override {
-        NimBLEAttValue v = c->getValue();
-        if (v.size() == 0) return;
-        bool on = (v.data()[0] != 0);
-        if (horn_cb) horn_cb(on);
-    }
-};
-
 class ServoCharCallbacks : public NimBLECharacteristicCallbacks {
     void onWrite(NimBLECharacteristic* c) override {
         Serial.println("Received write to servo characteristic");
@@ -152,9 +124,8 @@ class DispenserControlCharCallbacks : public NimBLECharacteristicCallbacks {
     }
 };
 
-void ble_init(motor_write_cb_t motorCb, horn_write_cb_t hornCb, servo_write_cb_t servoCb, routine_write_cb_t routineCb, dispenser_duration_write_cb_t dispenserDurationCb, dispenser_start_write_cb_t dispenserStartCb) {
+void ble_init(motor_write_cb_t motorCb, servo_write_cb_t servoCb, routine_write_cb_t routineCb, dispenser_duration_write_cb_t dispenserDurationCb, dispenser_start_write_cb_t dispenserStartCb) {
     motor_cb = motorCb;
-    horn_cb = hornCb;
     servo_cb = servoCb;
     routine_cb = routineCb;
     dispenser_duration_cb = dispenserDurationCb;
@@ -171,10 +142,6 @@ void ble_init(motor_write_cb_t motorCb, horn_write_cb_t hornCb, servo_write_cb_t
     pMotorCharacteristic->setCallbacks(new MotorCharCallbacks());
     add_ccc_descriptor(pMotorCharacteristic);
 
-    // Horn characteristic: write
-    pHornCharacteristic = pService->createCharacteristic(HORN_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE);
-    pHornCharacteristic->setCallbacks(new HornCharCallbacks());
-
     // Servo characteristic: read/write
     pServoCharacteristic = pService->createCharacteristic(SERVO_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::READ);
     pServoCharacteristic->setCallbacks(new ServoCharCallbacks());
@@ -185,18 +152,6 @@ void ble_init(motor_write_cb_t motorCb, horn_write_cb_t hornCb, servo_write_cb_t
     // Button characteristic: read/notify
     pButtonCharacteristic = pService->createCharacteristic(BUTTON_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ);
     add_ccc_descriptor(pButtonCharacteristic);
-
-    // LED characteristic: read/write/notify
-    pLedCharacteristic = pService->createCharacteristic(LED_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
-    add_ccc_descriptor(pLedCharacteristic);
-    pLedCharacteristic->setCallbacks(new LedCharCallbacks());
-
-    // LED crossfade state characteristic: read/notify
-    pLedCrossFadeStateCharacteristic = pService->createCharacteristic(
-        LED_CROSSFADE_STATE_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
-    add_ccc_descriptor(pLedCrossFadeStateCharacteristic);
-    uint8_t zero = 0; // initial state = not in crossfade
-    pLedCrossFadeStateCharacteristic->setValue(&zero, 1);
 
     // Routine characteristic: write
     pRoutineCharacteristic = pService->createCharacteristic(ROUTINE_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE);
@@ -233,22 +188,6 @@ void ble_notify_button(uint8_t payload) {
     uint8_t b = payload;
     pButtonCharacteristic->setValue(&b, 1);
     pButtonCharacteristic->notify();
-}
-
-void ble_notify_led_crossfade_started() {
-    if (pLedCrossFadeStateCharacteristic == nullptr) return;
-    Serial.println("Notifying LED crossfade started");
-    uint8_t one = 1;
-    pLedCrossFadeStateCharacteristic->setValue(&one, 1);
-    pLedCrossFadeStateCharacteristic->notify();
-}
-
-void ble_notify_led_crossfade_done() {
-    if (pLedCrossFadeStateCharacteristic == nullptr) return;
-    Serial.println("Notifying LED crossfade done");
-    uint8_t zero = 0;
-    pLedCrossFadeStateCharacteristic->setValue(&zero, 1);
-    pLedCrossFadeStateCharacteristic->notify();
 }
 
 void ble_notify_dispenser_start(uint8_t state) {

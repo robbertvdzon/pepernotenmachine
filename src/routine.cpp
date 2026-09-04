@@ -23,7 +23,7 @@ static void vTimerCallback(TimerHandle_t xTimer) {
 
 static void IRAM_ATTR switch_isr() {
     TickType_t now = xTaskGetTickCountFromISR();
-    int newState = digitalRead(ROUTINE_SWITCH_PIN);
+    int newState = digitalRead(PULL_MOTOR_END_SWITCH_PIN);
 
     // only handle a state change if it has been stable longer than debounce delay
     if (newState != currentState && (now - lastInterruptTick) >= debounceDelayTicks) {
@@ -42,10 +42,10 @@ static void IRAM_ATTR switch_isr() {
 }
 
 void routine_init() {
-    pinMode(ROUTINE_SWITCH_PIN, INPUT_PULLUP);
-    currentState = digitalRead(ROUTINE_SWITCH_PIN);
+    pinMode(PULL_MOTOR_END_SWITCH_PIN, INPUT_PULLUP);
+    currentState = digitalRead(PULL_MOTOR_END_SWITCH_PIN);
     lastInterruptTick = xTaskGetTickCount();
-    attachInterrupt(digitalPinToInterrupt(ROUTINE_SWITCH_PIN), switch_isr, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(RELEASE_SERVO_PIN), switch_isr, CHANGE);
 
     moveUpTimer = xTimerCreate("MoveUpTimer", pdMS_TO_TICKS(2000), pdFALSE, (void*)0, vTimerCallback);
 }

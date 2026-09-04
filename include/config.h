@@ -3,46 +3,24 @@
 
 #include <stdint.h>
 
-#if defined(BOARD_FEATHER)
-
-// Feather ESP32 V2
-static const int MOTOR_PUL_PIN = 14;
-static const int MOTOR_DIR_PIN = 20;
-static const int MOTOR_ENA_PIN = 22;
-static const int HORN_PIN = 32;
-static const int BUTTON_PIN = 38;
-static const int LED_PIN = 0;
-static const int LED_POWER_PIN = 2;
-static const int SERVO_PIN = 15;
-static const int ROUTINE_SWITCH_PIN = 33;
-static const int DISPENSER_STEP_PIN = 27;
-
-#elif defined(BOARD_ESP32DEV)
-
-static const int MOTOR_PUL_PIN = 14;
-static const int MOTOR_DIR_PIN = 25;
-static const int MOTOR_ENA_PIN = 26;
-static const int HORN_PIN = 4;
-static const int BUTTON_PIN = 32;
-static const int LED_PIN = 13;
-static const int LED_POWER_PIN = 12;
-static const int SERVO_PIN = 15;
-static const int ROUTINE_SWITCH_PIN = 33;
-static const int DISPENSER_STEP_PIN = 27;
-
-#else
-
-#error "No supported board selected"
-
-#endif
+static const int LED_1_PIN = 19;           // Generic indicator LED (sinking current)
+static const int LED_2_PIN = 18;           // Generic indicator LED (sinking current)
+static const int LED_3_PIN = 4;            // Generic indicator LED (sinking current)
+static const int EXTRA_IO_1_PIN = 21;      // Not yet assigned
+static const int EXTRA_IO_2_PIN = 22;      // Not yet assigned
+static const int DISPENSER_EN_PIN = 23;    // Connected to EN(9) pin of DRV8825 stepper driver
+static const int DISPENSER_STEP_PIN = 25;  // Connected to STEP(15) pin of DRV8825 stepper driver
+static const int DISPENSER_DIR_PIN = 26;   // Connected to DIR(16) pin of DRV8825 stepper driver
+static const int PULL_MOTOR_PUL_PIN = 27;  // Connected to PUL pin of MicroStep driver for pull motor
+static const int PULL_MOTOR_DIR_PIN = 16;  // Connected to DIR pin of MicroStep driver for pull motor
+static const int PULL_MOTOR_ENA_PIN = 17;  // Connected to ENA pin of MicroStep driver for pull motor
+static const int PULL_MOTOR_END_SWITCH_PIN = 32; // Connected to end switch for pull motor (connected to GND when activated)
+static const int RELEASE_SERVO_PIN = 33;  // Conected to servo for release mechanism
 
 // BLE UUIDs
 #define SERVICE_UUID "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define MOTOR_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
-#define HORN_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a9"
 #define BUTTON_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26aa"
-#define LED_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26ab"
-#define LED_CROSSFADE_STATE_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26ac"
 #define SERVO_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26ad"
 #define ROUTINE_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26ae"
 #define DISPENSER_DURATION_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26af"

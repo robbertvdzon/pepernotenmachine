@@ -5,18 +5,18 @@
 static bool enabled = true;
 
 void motor_init() {
-    pinMode(MOTOR_PUL_PIN, OUTPUT);
-    pinMode(MOTOR_DIR_PIN, OUTPUT);
-    pinMode(MOTOR_ENA_PIN, OUTPUT);
+    pinMode(PULL_MOTOR_PUL_PIN, OUTPUT);
+    pinMode(PULL_MOTOR_DIR_PIN, OUTPUT);
+    pinMode(PULL_MOTOR_ENA_PIN, OUTPUT);
 
     // Start disabled to avoid immediate hum and prevent unrelated PWM interactions
-    digitalWrite(MOTOR_ENA_PIN, HIGH);
-    digitalWrite(MOTOR_DIR_PIN, HIGH);
-    digitalWrite(MOTOR_PUL_PIN, LOW);
+    digitalWrite(PULL_MOTOR_ENA_PIN, HIGH);
+    digitalWrite(PULL_MOTOR_DIR_PIN, HIGH);
+    digitalWrite(PULL_MOTOR_PUL_PIN, LOW);
 
     // Initialize PWM with default frequency on dedicated channel (channel 7)
     ledcSetup(PWM_CHANNEL, MOTOR_DEFAULT_FREQ, PWM_RESOLUTION);
-    ledcAttachPin(MOTOR_PUL_PIN, PWM_CHANNEL);
+    ledcAttachPin(PULL_MOTOR_PUL_PIN, PWM_CHANNEL);
     ledcWrite(PWM_CHANNEL, 0);  // start stopped
     enabled = false;
 }
@@ -24,7 +24,7 @@ void motor_init() {
 void motor_set_speed(int32_t speed) {
     // Stop
     if (speed == 0) {
-        Serial.println("Motor stop");
+        Serial.println("Pull motor stop");
         ledcWrite(PWM_CHANNEL, 0);
         motor_enable(false);
         return;
@@ -51,11 +51,9 @@ void motor_set_speed(int32_t speed) {
     ledcWriteTone(PWM_CHANNEL, newFreq);
 }
 
-void motor_set_direction(bool forward) {
-    digitalWrite(MOTOR_DIR_PIN, forward ? LOW : HIGH);
-}
+void motor_set_direction(bool forward) { digitalWrite(PULL_MOTOR_DIR_PIN, forward ? LOW : HIGH); }
 
 void motor_enable(bool on) {
     enabled = on;
-    digitalWrite(MOTOR_ENA_PIN, on ? LOW : HIGH);
+    digitalWrite(PULL_MOTOR_ENA_PIN, on ? LOW : HIGH);
 }
