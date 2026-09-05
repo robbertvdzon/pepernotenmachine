@@ -2878,6 +2878,12 @@
 		(uuid "01a8449f-3789-4900-8864-9f8a36d2a88f")
 	)
 	(junction
+		(at 242.57 125.73)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "0f6488fb-7637-45cb-9289-bc64ce0924b8")
+	)
+	(junction
 		(at 135.89 31.75)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -2920,12 +2926,6 @@
 		(uuid "9e42e6f3-ab34-4adc-bb5b-775b1dfceb6f")
 	)
 	(junction
-		(at 236.22 124.46)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "a7db439a-7a1e-4c93-9252-7afe13b62b48")
-	)
-	(junction
 		(at 97.79 87.63)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -2938,7 +2938,7 @@
 		(uuid "be835221-8c1e-4d8e-a334-cf8cba5f3415")
 	)
 	(junction
-		(at 238.76 139.7)
+		(at 242.57 139.7)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "c95592c8-0c3e-4529-bfd7-63d282acf158")
@@ -2984,36 +2984,6 @@
 			(type default)
 		)
 		(uuid "044ea3fc-190e-48a4-814d-183f1f2079c2")
-	)
-	(wire
-		(pts
-			(xy 236.22 139.7) (xy 238.76 139.7)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "06332f06-7ccc-45f4-8bea-e83c5b622347")
-	)
-	(wire
-		(pts
-			(xy 233.68 124.46) (xy 233.68 142.24)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "0bb2ff69-f202-41a6-b744-e243c194ba29")
-	)
-	(wire
-		(pts
-			(xy 236.22 124.46) (xy 233.68 124.46)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "0c39c1b3-bff2-4505-bbbd-5940d8429817")
 	)
 	(wire
 		(pts
@@ -3127,7 +3097,7 @@
 	)
 	(wire
 		(pts
-			(xy 238.76 133.35) (xy 238.76 139.7)
+			(xy 242.57 133.35) (xy 242.57 139.7)
 		)
 		(stroke
 			(width 0)
@@ -3247,6 +3217,16 @@
 	)
 	(wire
 		(pts
+			(xy 236.22 142.24) (xy 236.22 125.73)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "51d66ff9-f701-4586-8221-e0cca3e07230")
+	)
+	(wire
+		(pts
 			(xy 81.28 95.25) (xy 81.28 97.79)
 		)
 		(stroke
@@ -3264,6 +3244,16 @@
 			(type default)
 		)
 		(uuid "54467342-4c76-41f7-a4a7-8735145b8be5")
+	)
+	(wire
+		(pts
+			(xy 236.22 125.73) (xy 242.57 125.73)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "551eddf9-0c47-4acf-a3c8-2d918b8d17f8")
 	)
 	(wire
 		(pts
@@ -3367,16 +3357,6 @@
 	)
 	(wire
 		(pts
-			(xy 236.22 142.24) (xy 236.22 139.7)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "7443a2f9-e91b-4d89-80e9-f7439470298f")
-	)
-	(wire
-		(pts
 			(xy 63.5 29.21) (xy 63.5 31.75)
 		)
 		(stroke
@@ -3424,16 +3404,6 @@
 			(type default)
 		)
 		(uuid "807807fe-d22f-46b9-b89d-3477bd505a86")
-	)
-	(wire
-		(pts
-			(xy 238.76 125.73) (xy 238.76 124.46)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "838c4317-2cbd-4fc8-b741-32c045823ad2")
 	)
 	(wire
 		(pts
@@ -3534,16 +3504,6 @@
 			(type default)
 		)
 		(uuid "a1d7deef-7df5-44df-ba54-24567382c440")
-	)
-	(wire
-		(pts
-			(xy 236.22 121.92) (xy 236.22 124.46)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a3bbaa60-d9e4-40c1-9e59-9a7b9ea28e68")
 	)
 	(wire
 		(pts
@@ -3767,6 +3727,16 @@
 	)
 	(wire
 		(pts
+			(xy 233.68 139.7) (xy 233.68 142.24)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d423441e-f5b7-4c9e-b6fd-8ef93d2e4e19")
+	)
+	(wire
+		(pts
 			(xy 156.21 72.39) (xy 118.11 72.39)
 		)
 		(stroke
@@ -3784,16 +3754,6 @@
 			(type default)
 		)
 		(uuid "d49270dd-fcfc-469f-8785-166e977dc128")
-	)
-	(wire
-		(pts
-			(xy 238.76 139.7) (xy 242.57 139.7)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "d6e86f5b-caf9-414b-b3c9-b59a90b6ab43")
 	)
 	(wire
 		(pts
@@ -3857,6 +3817,16 @@
 	)
 	(wire
 		(pts
+			(xy 233.68 139.7) (xy 242.57 139.7)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "eaf1a29a-e9e9-44a6-9b36-7f1c3dc00184")
+	)
+	(wire
+		(pts
 			(xy 186.69 41.91) (xy 186.69 31.75)
 		)
 		(stroke
@@ -3887,6 +3857,16 @@
 	)
 	(wire
 		(pts
+			(xy 242.57 123.19) (xy 242.57 125.73)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f64858bd-32ca-4577-a3a3-8042d16314df")
+	)
+	(wire
+		(pts
 			(xy 83.82 97.79) (xy 83.82 95.25)
 		)
 		(stroke
@@ -3894,16 +3874,6 @@
 			(type default)
 		)
 		(uuid "f74db527-7c20-471a-89e9-a81bfc7c2db0")
-	)
-	(wire
-		(pts
-			(xy 238.76 124.46) (xy 236.22 124.46)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "f9301e97-a476-4558-9ee4-09cce54ea901")
 	)
 	(wire
 		(pts
@@ -4625,7 +4595,7 @@
 	)
 	(symbol
 		(lib_id "power:+5V")
-		(at 236.22 121.92 0)
+		(at 242.57 123.19 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -4636,7 +4606,7 @@
 		(fields_autoplaced yes)
 		(uuid "5aae1ab8-7036-43bd-97de-c9658fb64210")
 		(property "Reference" "#PWR013"
-			(at 236.22 125.73 0)
+			(at 242.57 127 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4647,7 +4617,7 @@
 			)
 		)
 		(property "Value" "+5V"
-			(at 236.22 116.84 0)
+			(at 242.57 118.11 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -4657,7 +4627,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 236.22 121.92 0)
+			(at 242.57 123.19 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4668,7 +4638,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 236.22 121.92 0)
+			(at 242.57 123.19 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4679,7 +4649,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+5V\""
-			(at 236.22 121.92 0)
+			(at 242.57 123.19 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5137,7 +5107,7 @@
 	)
 	(symbol
 		(lib_id "Device:C_Polarized")
-		(at 238.76 129.54 0)
+		(at 242.57 129.54 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -5148,7 +5118,7 @@
 		(fields_autoplaced yes)
 		(uuid "706a8247-2a2e-4052-88b3-5694d4ab0318")
 		(property "Reference" "C2"
-			(at 242.57 127.3809 0)
+			(at 246.38 127.3809 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -5159,7 +5129,7 @@
 			)
 		)
 		(property "Value" "470uF/10V"
-			(at 242.57 129.9209 0)
+			(at 246.38 129.9209 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -5170,7 +5140,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_THT:CP_Radial_D10.0mm_P5.00mm"
-			(at 239.7252 133.35 0)
+			(at 243.5352 133.35 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5181,7 +5151,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 238.76 129.54 0)
+			(at 242.57 129.54 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5192,7 +5162,7 @@
 			)
 		)
 		(property "Description" "Polarized capacitor"
-			(at 238.76 129.54 0)
+			(at 242.57 129.54 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
