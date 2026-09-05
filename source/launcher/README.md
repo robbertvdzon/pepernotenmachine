@@ -1,163 +1,127 @@
-# Launcher (TOETER) — ESP32 Feather project
+# Launcher
 
-This project runs on an Adafruit Feather ESP32 and provides motor, horn, button and NeoPixel LED control over BLE. It is built with PlatformIO (Arduino framework) and uses the NimBLE-Arduino (lightweight BLE) and Adafruit NeoPixel libraries.
+Firmware for the Pepernotenmachine launcher, built for a generic ESP32 Dev Module with PlatformIO and the Arduino framework. The firmware controls the pull motor, release servo, dispenser stepper, three indicator LEDs, a physical button, and a BLE interface.
 
 ## Features
 
-- Stepper motor control (step pulses generated using ESP32 LEDC PWM)
-- Horn toggle control
-- Servo motor control (angle 0‑180°) via BLE
-- Physical push-button with notify on press/release
-- Single NeoPixel LED (onboard/external) with multiple non-blocking effects and crossfade support
-- BLE service exposing characteristics to control motor, horn, servo and LED and to receive button notifications
-- Modular structure: `motor`, `button`, `horn`, `servo`, `led`, `ble_manager` modules
+- BLE control of the pull motor, release servo, launch sequence, and dispenser
+- Pull motor speed and direction control with a signed value from `-512` to `512`
+- Release servo positioning from `0` to `180` degrees
+- Timed dispenser motion with configurable duration from 1 to 10 seconds
+- Debounced button notifications
+- Three sinking-current indicator LEDs with off, on, flash, and pulse states
+- Support for up to three simultaneous BLE connections
 
-## Hardware / Wiring
+## Hardware and pinout
 
-Pins are defined centrally in `include/config.h`. Defaults in this repo:
+The pin assignments are defined in [`include/config.h`](include/config.h):
 
-- MOTOR_PUL_PIN: 14
-- MOTOR_DIR_PIN: 20
-- MOTOR_ENA_PIN: 22
-- HORN_PIN: 32
-- BUTTON_PIN: 38
-- LED_PIN: 13 (NeoPixel data)
-- SERVO_PIN: 15 (PWM signal to servo)
+| Function | ESP32 pin | Description |
+| --- | ---: | --- |
+| LED 1 | 19 | Generic indicator LED |
+| LED 2 | 18 | Generic indicator LED |
+| LED 3 | 4 | Generic indicator LED |
+| Button / extra IO 1 | 21 | Active-low button input with internal pull-up |
+| Extra IO 2 | 22 | Reserved |
+| Dispenser enable | 23 | DRV8825 `EN` |
+| Dispenser step | 25 | DRV8825 `STEP` |
+| Dispenser direction | 26 | DRV8825 `DIR` |
+| Pull motor pulse | 27 | Microstep driver `PUL` |
+| Pull motor direction | 16 | Microstep driver `DIR` |
+| Pull motor enable | 17 | Microstep driver `ENA` |
+| Pull motor end switch | 32 | Active-low input with internal pull-up |
+| Release servo | 33 | Servo PWM signal |
 
-Adjust pins in `include/config.h` if your wiring differs.
+The indicator LEDs sink current: a low output turns an LED on. Use the launcher schematic and the pin definitions in `include/config.h` when wiring the board. Connect all motor-driver and servo grounds to the ESP32 ground, and provide suitable external power for the motors and servo.
 
-Important: ensure the NeoPixel power and ground share the ESP32 ground, and use a suitable power source for the LED(s) if you increase brightness or add more pixels.
+## BLE service
 
-## BLE Service & Characteristics
+The device advertises as `TOETER BLE`.
 
 Service UUID:
-- 4fafc201-1fb5-459e-8fcc-c5c9c331914b
 
-Characteristics (UUIDs and payloads):
+`4fafc201-1fb5-459e-8fcc-c5c9c331914b`
 
-1) Motor characteristic (write only)
-- UUID: beb5483e-36e1-4688-b7f5-ea07361b26a8
-- Payload: 4 bytes (big-endian unsigned 32-bit)
-- Semantics: half-period in microseconds (uint32_t). The motor module's function `motor_set_delay_us(uint32_t halfPeriodUs)` receives this value — e.g., smaller half-period = faster stepping.
-- Example: half-period = 1000 µs -> bytes `00 00 03 E8` (hex)
+All multi-byte values use big-endian byte order.
 
-2) Horn characteristic (write only)
-- UUID: beb5483e-36e1-4688-b7f5-ea07361b26a9
-- Payload: 1 byte: `0x00` = off, any non-zero = on
+| Characteristic | UUID suffix | Properties | Payload |
+| --- | --- | --- | --- |
+| Pull motor | `...26a8` | Read, write | Signed 32-bit speed, clamped to `-512..512` |
+| Button | `...26aa` | Read, notify | `0x01` pressed, `0x00` released |
+| Release servo | `...26ad` | Read, write | One byte, angle `0..180` degrees |
+| Launch sequence | `...26ae` | Write | Any non-empty value starts the sequence |
+| Dispenser duration | `...26af` | Read, write | One byte, duration in seconds, clamped to `1..10` |
+| Dispenser control | `...26b0` | Read, write, notify | `0x01` start, `0x00` stop; notifications report state |
 
-3) Button characteristic (read + notify)
-- UUID: beb5483e-36e1-4688-b7f5-ea07361b26aa
-- Notifications: 1 byte payload
-  - `0x00` = pressed
-  - `0x01` = released
-- Recommended: subscribe to notifications on connect to observe presses/releases
+The complete UUIDs are defined in `include/config.h`.
 
-4) LED characteristic (read + write + notify)
+### Examples
 
-5) Servo angle characteristic (read + write)
-- UUID: beb5483e-36e1-4688-b7f5-ea07361b26ad
-- Payload: 1 byte 0‑180 (angle in degrees)
-- Writing moves the servo; reading returns the last programmed angle.  A client may write any value 0‑180 and the value will be clamped.
+Using a BLE client that supports raw hexadecimal writes:
 
-- UUID: beb5483e-36e1-4688-b7f5-ea07361b26ab
-- Read value: 4 bytes [mode, R, G, B]
-- Write payloads:
-  - Basic (4 bytes): [mode, R, G, B]
-    - mode values:
-      - 0 = OFF
-      - 1 = ON (static color R,G,B)
-      - 2 = SINE (sine pulsing around R,G,B)
-      - 3 = FLASH (150 ms on/off of R,G,B)
-      - 4 = RAINBOW (soft 5s color cycle, ignores RGB)
-      - 5 = CROSSFADE (requires 6 bytes)
-  - Crossfade (6 bytes): [5, R, G, B, duration_hi, duration_lo]
-    - duration is 16-bit big-endian milliseconds for the crossfade duration (e.g., `00 64` = 100 ms)
-    - On completion, the device sends a 1-byte notification (value `0x01`) on the LED characteristic to indicate completion.
-- Notification payload for crossfade completion: single byte `0x01`.
+- Set pull motor speed to `512`: `00 00 02 00`
+- Set pull motor speed to `-512`: `FF FF FE 00`
+- Stop the pull motor: `00 00 00 00`
+- Move the release servo to 90 degrees: `5A`
+- Start the launch sequence: `01`
+- Set dispenser duration to 4 seconds: `04`
+- Start the dispenser: `01`
+- Stop the dispenser: `00`
 
-Examples (using a BLE client that lets you write raw hex bytes):
-- Set LED static to purple (mode=1, R=128, G=0, B=128): `01 80 00 80` (hex)
-- Start crossfade to white over 2 seconds: `05 FF FF FF 07 D0` (hex). `07 D0` = 2000 ms in big-endian.
+The pull motor maps positive and negative values to opposite directions and maps the magnitude to approximately 31 Hz through 16 kHz. A motor value of zero disables the motor.
+
+## Launch sequence
+
+The launch sequence starts only when the pull motor end-switch input is inactive. It then:
+
+1. Moves the pull motor down at speed `-512` and pulses LED 1.
+2. On the end-switch transition, moves up slowly at speed `128` and flashes LED 1 for 2 seconds.
+3. Moves up quickly at speed `512` for the configured 12-second return interval.
+
+LED 1 is off while idle and on when the sequence completes. LED 2 and LED 3 are available for other indicator states but are not currently assigned by the sequence code.
+
+### Current implementation notes
+
+The sequence code currently has three details to keep in mind when testing:
+
+- `sequence_start()` rejects the `HIGH` end-switch state, despite its comment saying the switch should not be activated.
+- The interrupt is registered with `RELEASE_SERVO_PIN` rather than `PULL_MOTOR_END_SWITCH_PIN`.
+- The sequence timer callback checks the slow timer twice, so the fast return timer currently reaches its error branch instead of stopping the motor.
 
 ## Software structure
 
-Key files and modules:
+- `src/main.cpp` initializes each subsystem and runs the BLE callback wiring.
+- `src/ble_manager.cpp` creates the BLE service, characteristics, advertising, and connection handling.
+- `src/pull_motor.cpp` controls the pull motor using ESP32 LEDC PWM.
+- `src/release_servo.cpp` controls the release servo through `ESP32Servo`.
+- `src/dispenser.cpp` controls the dispenser through `FastAccelStepper`.
+- `src/sequence.cpp` coordinates the pull motor, end switch, timers, and LED 1.
+- `src/button.cpp` debounces the button in an interrupt and FreeRTOS task.
+- `src/led.c` drives the three indicator LEDs with a periodic FreeRTOS timer.
+- `include/config.h` contains pin assignments, UUIDs, and motion limits.
 
-- `src/main.cpp` — orchestrates init and main loop.
-- `include/config.h` — central pin and UUID definitions.
-- `include/motor.h`, `src/motor.cpp` — motor control (LEDC pwm).
-- `include/button.h`, `src/button.cpp` — non-blocking debounce and notify.
-- `include/horn.h`, `src/horn.cpp` — horn control with auto-off.
-- `include/led.h`, `src/led.cpp` — NeoPixel driver and non-blocking effects.
-- `include/ble_manager.h`, `src/ble_manager.cpp` — BLE service and characteristics wiring.
+## Build, upload, and monitor
 
-All modules use small C-style callbacks to forward BLE writes to the appropriate subsystem.
-
-### Notes about BLE implementation
-
-- The project was migrated from the Bluedroid-based ESP32 BLE Arduino stack to NimBLE (NimBLE-Arduino) to reduce flash usage. NimBLE is functionally equivalent for GATT server use (read/write/notify) and is significantly smaller.
-- Size impact seen in this workspace (approximate, measured after migration):
-  - Before (Bluedroid build): ~1,168 KB total firmware
-  - After (NimBLE build): ~632 KB total firmware
-- `platformio.ini` now includes `h2zero/NimBLE-Arduino` as a dependency.
-- The code explicitly adds the Client Characteristic Configuration (CCC) descriptor (UUID 0x2902) for the Button and LED characteristics so clients that look for that descriptor object will find it. NimBLE normally handles notify/indicate behavior, but the explicit descriptor improves compatibility with some clients.
-
-## Build & Upload (PlatformIO)
-
-From the project root, build:
+Install PlatformIO, then run these commands from the project directory:
 
 ```bash
 pio run
-```
-
-To upload to the connected board (PlatformIO will attempt to auto-detect the serial port):
-
-```bash
 pio run -t upload
-```
-
-Open the serial monitor (default 115200) to see runtime logs:
-
-```bash
 pio device monitor
 ```
 
-If you prefer the VS Code PlatformIO UI, use the Build/Upload/Monitor icons in the bottom bar or in the PlatformIO toolbar.
+The serial monitor runs at 115200 baud. The project dependencies are declared in `platformio.ini`:
 
-## Runtime notes & testing steps
-
-1. Power the board and open the serial monitor. The program prints BLE connect/disconnect events and button debug messages.
-2. Using a BLE client app (nRF Connect is recommended), scan and connect to the device named `TOETER BLE`.
-3. Subscribe to the Button and LED characteristics to receive notifications.
-4. Use the Motor characteristic to set stepping speed (half-period µs). Start with a conservative half-period (e.g., 2000 µs) and test.
-5. Use the Horn characteristic to sound the horn (write `01`), and `00` to silence.
-6. Use the LED characteristic to set colors and crossfades as described in the examples above.
+- `h2zero/NimBLE-Arduino`
+- `madhephaestus/ESP32Servo`
+- `gin66/FastAccelStepper`
 
 ## Troubleshooting
 
-- No BLE advertising: make sure the ESP32 has power and is not in a previous crash state; reset the board.
-- Button notifications not received: check wiring of `BUTTON_PIN` and ensure pull-up/down as required by your hardware; the repo expects an active-low or -high depending on wiring — check the button code for details.
-- NeoPixel doesn't light: verify wiring (data to `LED_PIN`, GND common) and that the pixel is powered. Some pixels require 5V — if so, use a level shifter or a 5V supply with proper ground.
-- Motor not moving: check enable pin wiring (`MOTOR_ENA_PIN`), ensure motor driver logic levels match the driver (step/dir), and use safe half-period values to avoid missed steps.
+- If the device does not advertise, reset the ESP32 and check the serial output at 115200 baud.
+- If button notifications are inverted, check that the button connects the input to ground when pressed.
+- If a motor does not move, check driver enable polarity, shared ground, motor-driver power, and the step/direction wiring.
+- If the launch sequence refuses to start, check the end-switch state and wiring.
+- The dispenser duration is limited to 1 through 10 seconds by the firmware.
 
-## Modifying configuration
-
-All pin assignments and BLE UUIDs are in `include/config.h`. Edit there and re-build if you need to change pins or UUIDs.
-
-## Contributing / Extending
-
-- Add more LED effects in `src/led.cpp` and expose new modes.
-- Add readbacks or richer notification payloads for the LED characteristic if your client needs them.
-- Add unit tests or a simulator harness for the LED timing logic (non-blocking).
-
-## License & Contact
-
-This repository contains code and is maintained by the project owner. Modify and reuse as you like; add a LICENSE file to set explicit terms.
-
-If you'd like, I can also:
-- Add example client code (Python or mobile) that performs the BLE writes and subscribes to notifications.
-- Add a small `docs/` folder with wiring diagrams.
-
----
-
-README generated using the repository state on 2026-01-07. Adjust any examples if you change endianness or payload formats in code.
+The PlatformIO test directory currently contains the default test documentation; no automated firmware tests are defined.
