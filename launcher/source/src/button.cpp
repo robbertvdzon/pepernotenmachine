@@ -4,6 +4,8 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 
+#define BUTTON_PIN EXTRA_IO_1_PIN
+
 static button_notify_cb_t notify_cb = nullptr;
 static volatile int currentState = HIGH;
 static volatile TickType_t lastInterruptTick = 0;
@@ -27,7 +29,7 @@ static void button_task(void* pvParameters) {
 // ISR: fires on pin change, does minimal work and posts event to queue
 static void IRAM_ATTR button_isr() {
     TickType_t now = xTaskGetTickCountFromISR();
-    int newState = digitalRead(EXTRA_IO_1_PIN);
+    int newState = digitalRead(BUTTON_PIN);
 
     // only handle a state change if it has been stable longer than debounce delay
     if (newState != currentState && (now - lastInterruptTick) >= debounceDelayTicks) {
@@ -46,8 +48,8 @@ static void IRAM_ATTR button_isr() {
 
 void button_init(button_notify_cb_t cb) {
     notify_cb = cb;
-    pinMode(EXTRA_IO_1_PIN, INPUT_PULLUP);
-    currentState = digitalRead(EXTRA_IO_1_PIN);
+    pinMode(BUTTON_PIN, INPUT_PULLUP);
+    currentState = digitalRead(BUTTON_PIN);
     lastInterruptTick = xTaskGetTickCount();
 
     // Create queue and task for handling button events
@@ -59,7 +61,7 @@ void button_init(button_notify_cb_t cb) {
     }
 
     // Attach interrupt on CHANGE (rising or falling edge)
-    attachInterrupt(digitalPinToInterrupt(EXTRA_IO_1_PIN), button_isr, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), button_isr, CHANGE);
 }
 
 uint8_t button_get_state() {

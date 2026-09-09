@@ -80,14 +80,6 @@ The launch sequence starts only when the pull motor end-switch input is inactive
 
 LED 1 is off while idle and on when the sequence completes. LED 2 and LED 3 are available for other indicator states but are not currently assigned by the sequence code.
 
-### Current implementation notes
-
-The sequence code currently has three details to keep in mind when testing:
-
-- `sequence_start()` rejects the `HIGH` end-switch state, despite its comment saying the switch should not be activated.
-- The interrupt is registered with `RELEASE_SERVO_PIN` rather than `PULL_MOTOR_END_SWITCH_PIN`.
-- The sequence timer callback checks the slow timer twice, so the fast return timer currently reaches its error branch instead of stopping the motor.
-
 ## Software structure
 
 - `src/main.cpp` initializes each subsystem and runs the BLE callback wiring.

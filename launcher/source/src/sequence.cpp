@@ -15,7 +15,7 @@ enum SequenceState {
 };
 
 static SequenceState sequenceState = IDLE;
-static volatile int currentState = HIGH;
+static volatile int currentEndSwitchState = HIGH;
 static volatile TickType_t lastInterruptTick = 0;
 static const TickType_t debounceDelayTicks = pdMS_TO_TICKS(20);
 static TimerHandle_t moveUpSlowTimer;
@@ -26,7 +26,10 @@ static void vTimerCallback(TimerHandle_t xTimer) {
         Serial.println("Timer expired, moving up fast");
         pull_motor_set_speed(512);
         sequenceState = MOVE_UP_FAST;
-    } else if (xTimer == moveUpSlowTimer) {
+        if (moveUpFastTimer != NULL) {
+            xTimerReset(moveUpFastTimer, 0);
+        }
+    } else if (xTimer == moveUpFastTimer) {
         Serial.println("Timer expired, disabling motor");
         pull_motor_set_speed(0);
         pull_motor_enable(false);
@@ -42,11 +45,11 @@ static void IRAM_ATTR switch_isr() {
     int newState = digitalRead(PULL_MOTOR_END_SWITCH_PIN);
 
     // only handle a state change if it has been stable longer than debounce delay
-    if (newState != currentState && (now - lastInterruptTick) >= debounceDelayTicks) {
+    if (newState != currentEndSwitchState && (now - lastInterruptTick) >= debounceDelayTicks) {
         lastInterruptTick = now;
-        currentState = newState;
-        Serial.println("Received switch interrupt, state: " + String(currentState == LOW ? "LOW" : "HIGH"));
-        if (sequenceState == MOVE_DOWN && currentState == HIGH) {
+        currentEndSwitchState = newState;
+        Serial.println("Received switch interrupt, state: " + String(currentEndSwitchState == LOW ? "LOW" : "HIGH"));
+        if (sequenceState == MOVE_DOWN && currentEndSwitchState == HIGH) {
             Serial.println("Reached bottom, moving up");
             pull_motor_set_speed(128);
             sequenceState = MOVE_UP_SLOW;
@@ -63,9 +66,9 @@ void sequence_init() {
     led_set_state(STATE_LED, LED_OFF);
 
     pinMode(PULL_MOTOR_END_SWITCH_PIN, INPUT_PULLUP);
-    currentState = digitalRead(PULL_MOTOR_END_SWITCH_PIN);
+    currentEndSwitchState = digitalRead(PULL_MOTOR_END_SWITCH_PIN);
     lastInterruptTick = xTaskGetTickCount();
-    attachInterrupt(digitalPinToInterrupt(RELEASE_SERVO_PIN), switch_isr, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(PULL_MOTOR_END_SWITCH_PIN), switch_isr, CHANGE);
 
     moveUpSlowTimer =
         xTimerCreate("MoveUpSlowTimer", pdMS_TO_TICKS(MOVE_UP_SLOW_DURATION_MS), pdFALSE, (void*)0, vTimerCallback);
@@ -75,7 +78,7 @@ void sequence_init() {
 
 void sequence_start() { 
     //Make sure the switch is not currently activated!!
-    if (currentState == HIGH) {
+    if (currentEndSwitchState == HIGH) {
         Serial.println("Cannot start sequence: switch is currently activated");
         return;
     }
