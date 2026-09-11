@@ -1,5 +1,7 @@
 
 #include <Arduino.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/timers.h>
 
 #include "../include/config.h"
 #include "../include/release_servo.h"
@@ -10,17 +12,42 @@
 #include "../include/dispenser.h"
 #include "../include/led.h"
 
+static TimerHandle_t releaseServoReturnTimer = NULL;
+
+static void release_servo_return_cb(TimerHandle_t xTimer) {
+    release_servo_set_angle(0);
+}
+
 static void pull_motor_write_cb(int32_t speed) {
     pull_motor_set_speed(speed);
 }
 
 static void release_servo_write_cb(uint8_t angle) {
+    xTimerStop(releaseServoReturnTimer, 0);
     Serial.print("Setting release servo angle to ");
     Serial.println(angle);
     release_servo_set_angle(angle);
 }
 
 static void button_notify_cb(uint8_t payload) {
+    if (payload == 0) {
+        release_servo_set_angle(0);
+        sequence_start();
+        return;
+    }
+
+    release_servo_set_angle(180);
+
+    if (releaseServoReturnTimer == NULL) {
+        releaseServoReturnTimer = xTimerCreate("releaseServoReturn", pdMS_TO_TICKS(4000), pdFALSE, NULL,
+                                              release_servo_return_cb);
+    }
+
+    if (releaseServoReturnTimer != NULL) {
+        xTimerStop(releaseServoReturnTimer, 0);
+        xTimerStart(releaseServoReturnTimer, 0);
+    }
+
     ble_notify_button(payload);
 }
 

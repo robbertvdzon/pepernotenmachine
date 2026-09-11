@@ -1,6 +1,7 @@
 #include "../include/pull_motor.h"
 #include "../include/config.h"
 #include "../include/led.h"
+#include "../include/release_servo.h"
 #include <Arduino.h>
 
 #define STATE_LED LED_1
@@ -77,6 +78,8 @@ void sequence_init() {
 }
 
 void sequence_start() { 
+    release_servo_set_angle(0);
+
     //Make sure the switch is not currently activated!!
     if (currentEndSwitchState == HIGH) {
         Serial.println("Cannot start sequence: switch is currently activated");
