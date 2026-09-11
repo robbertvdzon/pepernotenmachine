@@ -20,3 +20,4 @@ work/
 *.sha256
 
 .claude/settings.local.json
+launcher/schematics/.history

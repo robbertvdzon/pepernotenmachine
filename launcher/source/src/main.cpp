@@ -23,9 +23,9 @@ static void pull_motor_write_cb(int32_t speed) {
 }
 
 static void release_servo_write_cb(uint8_t angle) {
-    xTimerStop(releaseServoReturnTimer, 0);
-    Serial.print("Setting release servo angle to ");
-    Serial.println(angle);
+    if (releaseServoReturnTimer != NULL) {
+        xTimerStop(releaseServoReturnTimer, 0);
+    }
     release_servo_set_angle(angle);
 }
 

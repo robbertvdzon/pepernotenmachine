@@ -18,7 +18,8 @@ void release_servo_set_angle(uint8_t angle) {
     currentAngle = angle;
     servo.write(angle);
     Serial.print("Servo angle set to ");
-    Serial.println(angle);
+    Serial.print(angle);
+    Serial.println(" degrees");
 }
 
 uint8_t release_servo_get_angle() { return currentAngle; }
