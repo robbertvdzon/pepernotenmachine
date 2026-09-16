@@ -17,7 +17,9 @@ typedef enum {
     LED_OFF = 0,
     LED_ON,
     LED_FLASH,
-    LED_PULSE
+    LED_PULSE,
+    LED_RAMP_UP,
+    LED_RAMP_DOWN
 } led_state_t;
 
 void led_init(void);
