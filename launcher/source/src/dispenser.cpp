@@ -1,7 +1,10 @@
 #include "../include/dispenser.h"
 #include "../include/config.h"
+#include "../include/led.h"
 #include <Arduino.h>
 #include <FastAccelStepper.h>
+
+#define STATE_LED LED_2
 
 FastAccelStepperEngine engine = FastAccelStepperEngine();
 FastAccelStepper* stepper = NULL;
@@ -15,6 +18,7 @@ static void vDispenseTimerCallback(TimerHandle_t xTimer) {
     Serial.println("Dispense timer expired, stopping dispenser");
     // stepper->stopMove();
     isDispensing = false;
+    led_set_state(STATE_LED, LED_RAMP_DOWN);
     if (notify_cb) notify_cb(0);  // notify stopped
 }
 
@@ -33,6 +37,8 @@ void dispenser_init(dispenser_notify_cb_t notifyCb) {
     } else {
         Serial.println("Failed to initialize dispenser stepper");
     }
+
+    led_set_state(STATE_LED, LED_OFF);
 
     // Create one-shot timer for duration
     dispenseTimer = xTimerCreate("DispenseTimer", pdMS_TO_TICKS(1000), pdFALSE, (void*)0, vDispenseTimerCallback);
@@ -56,7 +62,8 @@ void dispenser_control(uint8_t command) {
         }
         Serial.println("Starting dispenser");
         isDispensing = true;
-        
+        led_set_state(STATE_LED, LED_RAMP_UP);
+
         // Calculate acceleration proportional to duration
         // Accelerate in first DISPENSER_ACCEL_PHASE_PERCENT% of duration, decelerate in last DISPENSER_ACCEL_PHASE_PERCENT%
         // accel = topSpeed / accelTime = DISPENSER_TOP_SPEED_HZ / (DISPENSER_ACCEL_PHASE_PERCENT% * dispenseDuration)
@@ -98,6 +105,7 @@ void dispenser_control(uint8_t command) {
             xTimerStop(dispenseTimer, 0);
         }
         isDispensing = false;
+        led_set_state(STATE_LED, LED_RAMP_DOWN);
         if (notify_cb) notify_cb(0);
     }
 }
