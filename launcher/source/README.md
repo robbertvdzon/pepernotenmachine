@@ -8,8 +8,8 @@ Firmware for the Pepernotenmachine launcher, built for a generic ESP32 Dev Modul
 - Pull motor speed and direction control with a signed value from `-512` to `512`
 - Release servo positioning from `0` to `180` degrees
 - Timed dispenser motion with configurable duration from 1 to 10 seconds
-- Debounced button notifications
-- Three sinking-current indicator LEDs with off, on, flash, and pulse states
+- Debounced button notifications and callback-driven launch/servo behavior
+- Three sinking-current indicator LEDs with `OFF`, `ON`, `FLASH`, `PULSE`, `RAMP_UP`, and `RAMP_DOWN` states
 - Support for up to three simultaneous BLE connections
 
 ## Hardware and pinout
@@ -34,9 +34,21 @@ The pin assignments are defined in [`include/config.h`](include/config.h):
 
 The indicator LEDs sink current: a low output turns an LED on. Use the launcher schematic and the pin definitions in `include/config.h` when wiring the board. Connect all motor-driver and servo grounds to the ESP32 ground, and provide suitable external power for the motors and servo.
 
+### LED behavior
+
+The LED driver in `src/led.c` keeps per-LED intensity state and supports the following modes:
+
+- `LED_OFF`: off
+- `LED_ON`: full brightness
+- `LED_FLASH`: 500 ms half-cycle blinking
+- `LED_PULSE`: sinusoidal pulse with a 2 s period
+- `LED_RAMP_UP`: ramps from the current intensity to full brightness over 500 ms, shortened proportionally when already partially lit
+- `LED_RAMP_DOWN`: ramps from the current intensity to zero over 500 ms, shortened proportionally when already partially lit
+
+
 ## BLE service
 
-The device advertises as `TOETER BLE`.
+The device advertises as `Peppernut launcher`.
 
 Service UUID:
 
@@ -70,6 +82,8 @@ Using a BLE client that supports raw hexadecimal writes:
 
 The pull motor maps positive and negative values to opposite directions and maps the magnitude to approximately 31 Hz through 16 kHz. A motor value of zero disables the motor.
 
+The button callback is also wired to the launcher state machine: a button release (`0x00`) starts the launch sequence, while any other payload triggers the release servo to move to `180°` and then return to `0°` after a brief delay.
+
 ## Launch sequence
 
 The launch sequence starts only when the pull motor end-switch input is inactive. It then:
@@ -77,8 +91,9 @@ The launch sequence starts only when the pull motor end-switch input is inactive
 1. Moves the pull motor down at speed `-512` and pulses LED 1.
 2. On the end-switch transition, moves up slowly at speed `128` and flashes LED 1 for 2 seconds.
 3. Moves up quickly at speed `512` for the configured 12-second return interval.
+4. Restores the motor to idle and leaves LED 1 on.
 
-LED 1 is off while idle and on when the sequence completes. LED 2 and LED 3 are available for other indicator states but are not currently assigned by the sequence code.
+LED 1 is off while idle and on when the sequence completes. LED 2 and LED 3 are used for other indicators: LED 3 tracks the release-servo angle intensity and LED 2 is used by the dispenser state machine.
 
 ## Software structure
 
@@ -89,7 +104,7 @@ LED 1 is off while idle and on when the sequence completes. LED 2 and LED 3 are 
 - `src/dispenser.cpp` controls the dispenser through `FastAccelStepper`.
 - `src/sequence.cpp` coordinates the pull motor, end switch, timers, and LED 1.
 - `src/button.cpp` debounces the button in an interrupt and FreeRTOS task.
-- `src/led.c` drives the three indicator LEDs with a periodic FreeRTOS timer.
+- `src/led.c` drives the three indicator LEDs with a periodic FreeRTOS timer and stops the timer when all LEDs are static to save power.
 - `include/config.h` contains pin assignments, UUIDs, and motion limits.
 
 ## Build, upload, and monitor
