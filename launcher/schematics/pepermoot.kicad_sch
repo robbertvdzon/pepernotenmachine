@@ -4182,7 +4182,7 @@
 				)
 			)
 		)
-		(property "Footprint" "TerminalBlock:TerminalBlock_Xinya_XY308-2.54-4P_1x04_P2.54mm_Horizontal"
+		(property "Footprint" "TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal"
 			(at 68.58 146.05 0)
 			(hide yes)
 			(show_name no)
@@ -5134,7 +5134,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "TerminalBlock:TerminalBlock_Xinya_XY308-2.54-3P_1x03_P2.54mm_Horizontal"
+		(property "Footprint" "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-3-5.08_1x03_P5.08mm_Horizontal"
 			(at 43.18 146.05 0)
 			(hide yes)
 			(show_name no)
@@ -5299,7 +5299,7 @@
 				)
 			)
 		)
-		(property "Footprint" "TerminalBlock:TerminalBlock_Xinya_XY308-2.54-5P_1x05_P2.54mm_Horizontal"
+		(property "Footprint" "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-5-5.08_1x05_P5.08mm_Horizontal"
 			(at 245.11 158.75 0)
 			(hide yes)
 			(show_name no)
@@ -5723,7 +5723,7 @@
 				)
 			)
 		)
-		(property "Footprint" "TerminalBlock:TerminalBlock_Xinya_XY308-2.54-5P_1x05_P2.54mm_Horizontal"
+		(property "Footprint" "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-5-5.08_1x05_P5.08mm_Horizontal"
 			(at 143.51 146.05 0)
 			(hide yes)
 			(show_name no)
@@ -6061,7 +6061,7 @@
 				)
 			)
 		)
-		(property "Footprint" "TerminalBlock:TerminalBlock_Xinya_XY308-2.54-4P_1x04_P2.54mm_Horizontal"
+		(property "Footprint" "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal"
 			(at 115.57 146.05 0)
 			(hide yes)
 			(show_name no)
