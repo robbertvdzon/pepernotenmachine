@@ -131,7 +131,7 @@ void ble_init(pull_motor_write_cb_t motorCb, release_servo_write_cb_t releaseSer
     dispenser_duration_cb = dispenserDurationCb;
     dispenser_start_cb = dispenserStartCb;
 
-    NimBLEDevice::init("TOETER BLE");
+    NimBLEDevice::init("Peppernut launcher");
     pServer = NimBLEDevice::createServer();
     pServer->setCallbacks(new ServerCallbacks());
     pService = pServer->createService(SERVICE_UUID);
