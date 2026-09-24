@@ -4452,7 +4452,7 @@
 		(uuid "563dda05-4670-4269-86a6-fcfac03e4209")
 	)
 	(junction
-		(at 259.08 250.19)
+		(at 257.81 250.19)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "5875006e-7ced-46bd-9fad-46bdd108b852")
@@ -4698,7 +4698,7 @@
 		(uuid "faa3a445-1dcc-4df5-8a90-e74e97d08748")
 	)
 	(junction
-		(at 252.73 250.19)
+		(at 251.46 250.19)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "fb2131d2-00f5-4347-8aab-81cd160a34d7")
@@ -6597,16 +6597,6 @@
 	)
 	(wire
 		(pts
-			(xy 259.08 250.19) (xy 264.16 250.19)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b945e6f9-5d1a-407c-ba1d-37380bd19460")
-	)
-	(wire
-		(pts
 			(xy 363.22 247.65) (xy 381 247.65)
 		)
 		(stroke
@@ -6707,7 +6697,7 @@
 	)
 	(wire
 		(pts
-			(xy 246.38 250.19) (xy 252.73 250.19)
+			(xy 246.38 250.19) (xy 264.16 250.19)
 		)
 		(stroke
 			(width 0)
@@ -7174,16 +7164,6 @@
 			(type default)
 		)
 		(uuid "f6ae962c-8fa3-42a7-9624-6a9c2da3e39b")
-	)
-	(wire
-		(pts
-			(xy 252.73 250.19) (xy 259.08 250.19)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "f6ce5eb3-8b9e-4a00-8fc1-09cf1691ea89")
 	)
 	(wire
 		(pts
@@ -10019,7 +9999,7 @@
 				)
 			)
 		)
-		(property "Footprint" "PCM_SparkFun-Resistor:R_0603_1608Metric"
+		(property "Footprint" "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal"
 			(at 67.31 365.76 0)
 			(hide yes)
 			(show_name no)
@@ -12586,7 +12566,7 @@
 	)
 	(symbol
 		(lib_id "Device:LED")
-		(at 259.08 254 90)
+		(at 257.81 254 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -12597,7 +12577,7 @@
 		(fields_autoplaced yes)
 		(uuid "77897256-2199-4f74-b7a5-e35c95891cd6")
 		(property "Reference" "D35"
-			(at 256.54 256.8576 90)
+			(at 255.27 256.8576 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12608,7 +12588,7 @@
 			)
 		)
 		(property "Value" "LED"
-			(at 256.54 254.3176 90)
+			(at 255.27 254.3176 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12620,7 +12600,7 @@
 			)
 		)
 		(property "Footprint" "LED_THT:LED_D5.0mm"
-			(at 259.08 254 0)
+			(at 257.81 254 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12631,7 +12611,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 259.08 254 0)
+			(at 257.81 254 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12642,7 +12622,7 @@
 			)
 		)
 		(property "Description" "Light emitting diode"
-			(at 259.08 254 0)
+			(at 257.81 254 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12653,7 +12633,7 @@
 			)
 		)
 		(property "Sim.Pins" "1=K 2=A"
-			(at 259.08 254 0)
+			(at 257.81 254 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13487,7 +13467,7 @@
 	)
 	(symbol
 		(lib_id "Device:LED")
-		(at 252.73 254 90)
+		(at 251.46 254 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -13498,7 +13478,7 @@
 		(fields_autoplaced yes)
 		(uuid "8fba3356-4f46-4f1a-a49c-fcc4d87be748")
 		(property "Reference" "D36"
-			(at 250.19 256.8576 90)
+			(at 248.92 256.8576 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13509,7 +13489,7 @@
 			)
 		)
 		(property "Value" "LED"
-			(at 250.19 254.3176 90)
+			(at 248.92 254.3176 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13521,7 +13501,7 @@
 			)
 		)
 		(property "Footprint" "LED_THT:LED_D5.0mm"
-			(at 252.73 254 0)
+			(at 251.46 254 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13532,7 +13512,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 252.73 254 0)
+			(at 251.46 254 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13543,7 +13523,7 @@
 			)
 		)
 		(property "Description" "Light emitting diode"
-			(at 252.73 254 0)
+			(at 251.46 254 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13554,7 +13534,7 @@
 			)
 		)
 		(property "Sim.Pins" "1=K 2=A"
-			(at 252.73 254 0)
+			(at 251.46 254 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14246,7 +14226,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "PCM_SparkFun-Resistor:R_0603_1608Metric"
+		(property "Footprint" "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal"
 			(at 195.58 345.44 0)
 			(hide yes)
 			(show_name no)
