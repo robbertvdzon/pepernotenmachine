@@ -4561,6 +4561,12 @@
 		(uuid "89afced7-57e1-4cb1-930e-954a66d2c2ce")
 	)
 	(junction
+		(at 203.2 264.16)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "8d209c59-5c68-4c3e-9e27-18c9e4cdd259")
+	)
+	(junction
 		(at 274.32 295.91)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -4908,7 +4914,7 @@
 	)
 	(wire
 		(pts
-			(xy 199.39 264.16) (xy 220.98 264.16)
+			(xy 199.39 264.16) (xy 203.2 264.16)
 		)
 		(stroke
 			(width 0)
@@ -5288,16 +5294,6 @@
 	)
 	(wire
 		(pts
-			(xy 199.39 264.16) (xy 199.39 285.75)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "37d12608-a0a7-43ba-ad95-b4fe67232aa8")
-	)
-	(wire
-		(pts
 			(xy 389.89 287.02) (xy 398.78 287.02)
 		)
 		(stroke
@@ -5485,6 +5481,16 @@
 			(type default)
 		)
 		(uuid "4c85ceff-28fa-4ccf-8a7b-8e0e783fa5fd")
+	)
+	(wire
+		(pts
+			(xy 203.2 274.32) (xy 203.2 300.99)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4cbbae53-8413-47f2-a0c0-48789bf0cb7a")
 	)
 	(wire
 		(pts
@@ -5705,16 +5711,6 @@
 			(type default)
 		)
 		(uuid "5e73b032-3a0c-418b-8151-9f2742792380")
-	)
-	(wire
-		(pts
-			(xy 199.39 300.99) (xy 208.28 300.99)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "5e8d9370-489c-4cab-a1ad-498601bbcce0")
 	)
 	(wire
 		(pts
@@ -6458,6 +6454,16 @@
 	)
 	(wire
 		(pts
+			(xy 203.2 264.16) (xy 203.2 266.7)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a4c46a4e-3ada-462b-9984-258e44f10a9c")
+	)
+	(wire
+		(pts
 			(xy 100.33 369.57) (xy 100.33 375.92)
 		)
 		(stroke
@@ -6515,6 +6521,16 @@
 			(type default)
 		)
 		(uuid "ac68efce-d15f-4a61-bf55-989dad373c65")
+	)
+	(wire
+		(pts
+			(xy 203.2 264.16) (xy 220.98 264.16)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ae26f136-ba0f-4d04-8f74-f42f3e82cba0")
 	)
 	(wire
 		(pts
@@ -7018,6 +7034,16 @@
 	)
 	(wire
 		(pts
+			(xy 203.2 300.99) (xy 208.28 300.99)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "dc896f65-1dfa-449e-a3fb-e8847a7f5743")
+	)
+	(wire
+		(pts
 			(xy 316.23 303.53) (xy 316.23 152.4)
 		)
 		(stroke
@@ -7358,16 +7384,6 @@
 	)
 	(wire
 		(pts
-			(xy 199.39 293.37) (xy 199.39 300.99)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "fd3825fd-cfb9-4b0c-9e5d-db9059553556")
-	)
-	(wire
-		(pts
 			(xy 335.28 316.23) (xy 335.28 308.61)
 		)
 		(stroke
@@ -7622,11 +7638,9 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "04195dc4-bb77-4eed-99f9-09d13ca41713")
 		(property "Reference" "R61"
-			(at 181.61 271.7801 0)
-			(hide yes)
+			(at 189.484 268.224 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7636,7 +7650,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "470"
+		(property "Value" "4k7"
 			(at 186.69 270.5099 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10812,7 +10826,7 @@
 	)
 	(symbol
 		(lib_id "Device:R")
-		(at 199.39 289.56 0)
+		(at 203.2 270.51 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -10823,7 +10837,7 @@
 		(fields_autoplaced yes)
 		(uuid "573d9c10-5d3a-4412-be6b-1ee80c361773")
 		(property "Reference" "R8"
-			(at 201.93 288.2899 0)
+			(at 205.74 269.2399 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -10834,7 +10848,7 @@
 			)
 		)
 		(property "Value" "10k"
-			(at 201.93 290.8299 0)
+			(at 205.74 271.7799 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -10845,7 +10859,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_THT:R_Axial_DIN0204_L3.6mm_D1.6mm_P7.62mm_Horizontal"
-			(at 197.612 289.56 90)
+			(at 201.422 270.51 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10856,7 +10870,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 199.39 289.56 0)
+			(at 203.2 270.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10867,7 +10881,7 @@
 			)
 		)
 		(property "Description" "Resistor"
-			(at 199.39 289.56 0)
+			(at 203.2 270.51 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16847,11 +16861,9 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "d1275678-86e8-4c56-831c-d1bd979bbec3")
 		(property "Reference" "R62"
-			(at 191.77 271.7801 0)
-			(hide yes)
+			(at 199.39 268.478 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -16861,7 +16873,7 @@
 				(justify right)
 			)
 		)
-		(property "Value" "470"
+		(property "Value" "4k7"
 			(at 196.85 270.5099 0)
 			(show_name no)
 			(do_not_autoplace no)
