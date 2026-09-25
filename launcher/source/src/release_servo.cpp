@@ -7,7 +7,7 @@
 #define STATE_LED LED_3
 
 static Servo servo;
-static uint8_t currentAngle = 0;
+static uint8_t currentAngle = SERVO_CLOSE_ANGLE;
 
 void release_servo_init() {
     servo.attach(RELEASE_SERVO_PIN);

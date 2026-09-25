@@ -6,7 +6,7 @@
 
 #define STATE_LED LED_1
 #define MOVE_UP_SLOW_DURATION_MS 2000
-#define MOVE_UP_FAST_DURATION_MS 12000
+#define MOVE_UP_FAST_DURATION_MS 25000
 
 enum SequenceState {
     IDLE,
@@ -50,7 +50,7 @@ static void IRAM_ATTR switch_isr() {
         lastInterruptTick = now;
         currentEndSwitchState = newState;
         Serial.println("Received switch interrupt, state: " + String(currentEndSwitchState == LOW ? "LOW" : "HIGH"));
-        if (sequenceState == MOVE_DOWN && currentEndSwitchState == HIGH) {
+        if (sequenceState == MOVE_DOWN && currentEndSwitchState == LOW) {
             Serial.println("Reached bottom, moving up");
             pull_motor_set_speed(128);
             sequenceState = MOVE_UP_SLOW;
@@ -78,10 +78,10 @@ void sequence_init() {
 }
 
 void sequence_start() { 
-    release_servo_set_angle(0);
+    release_servo_set_angle(SERVO_CLOSE_ANGLE);
 
     //Make sure the switch is not currently activated!!
-    if (currentEndSwitchState == HIGH) {
+    if (currentEndSwitchState == LOW) {
         Serial.println("Cannot start sequence: switch is currently activated");
         return;
     }

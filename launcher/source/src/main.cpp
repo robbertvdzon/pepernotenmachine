@@ -15,7 +15,7 @@
 static TimerHandle_t releaseServoReturnTimer = NULL;
 
 static void release_servo_return_cb(TimerHandle_t xTimer) {
-    release_servo_set_angle(0);
+    release_servo_set_angle(SERVO_CLOSE_ANGLE);
 }
 
 static void pull_motor_write_cb(int32_t speed) {
@@ -31,12 +31,12 @@ static void release_servo_write_cb(uint8_t angle) {
 
 static void button_notify_cb(uint8_t payload) {
     if (payload == 0) {
-        release_servo_set_angle(0);
+        release_servo_set_angle(SERVO_CLOSE_ANGLE);
         sequence_start();
         return;
     }
 
-    release_servo_set_angle(180);
+    release_servo_set_angle(SERVO_OPEN_ANGLE);
 
     if (releaseServoReturnTimer == NULL) {
         releaseServoReturnTimer = xTimerCreate("releaseServoReturn", pdMS_TO_TICKS(4000), pdFALSE, NULL,

@@ -108,11 +108,23 @@ void led_set_state(led_id_t led, led_state_t state) {
         return;
     }
 
-    if (state == LED_RAMP_UP || state == LED_RAMP_DOWN) {
-        led_ramp_elapsed_ms[led] = state == LED_RAMP_UP
-            ? LED_RAMP_TIME_MS * led_intensities[led] / 255
-            : LED_RAMP_TIME_MS * (255 - led_intensities[led]) / 255;
+    switch (state) {
+        case LED_ON:
+            led_intensities[led] = 255;
+            break;
+        case LED_OFF:
+            led_intensities[led] = 0;
+            break;
+        case LED_RAMP_UP:
+            led_ramp_elapsed_ms[led] = LED_RAMP_TIME_MS * led_intensities[led] / 255;
+            break;
+        case LED_RAMP_DOWN:
+            led_ramp_elapsed_ms[led] = LED_RAMP_TIME_MS * (255 - led_intensities[led]) / 255;
+            break;
+        default:
+            break;
     }
 
     led_states[led] = state;
+    analogWrite(led_pins[led], 255 - led_intensities[led]);
 }
