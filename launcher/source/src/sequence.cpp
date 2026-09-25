@@ -6,7 +6,7 @@
 
 #define STATE_LED LED_1
 #define MOVE_UP_SLOW_DURATION_MS 2000
-#define MOVE_UP_FAST_DURATION_MS 25000
+#define MOVE_UP_FAST_DURATION_MS 40000
 
 enum SequenceState {
     IDLE,
