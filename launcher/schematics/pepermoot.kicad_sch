@@ -3049,7 +3049,7 @@
 		(uuid "11626191-2a42-4565-8178-d085cf4fd3cd")
 	)
 	(junction
-		(at 242.57 146.05)
+		(at 242.57 133.35)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "149cb156-27c3-4464-b3fa-c5e4a3dcf45c")
@@ -3067,7 +3067,7 @@
 		(uuid "69854e40-2529-4c10-9a1f-81b81917b370")
 	)
 	(junction
-		(at 250.19 146.05)
+		(at 250.19 133.35)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "82fe7a0f-1152-4c94-b8ed-367d112a43dc")
@@ -3091,7 +3091,7 @@
 		(uuid "9e42e6f3-ab34-4adc-bb5b-775b1dfceb6f")
 	)
 	(junction
-		(at 236.22 125.73)
+		(at 236.22 113.03)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "ac8420b9-754e-48b4-9cc1-c75ea67bc838")
@@ -3152,7 +3152,7 @@
 	)
 	(wire
 		(pts
-			(xy 240.03 148.59) (xy 240.03 153.67)
+			(xy 240.03 135.89) (xy 240.03 140.97)
 		)
 		(stroke
 			(width 0)
@@ -3172,7 +3172,7 @@
 	)
 	(wire
 		(pts
-			(xy 250.19 146.05) (xy 250.19 153.67)
+			(xy 250.19 133.35) (xy 250.19 140.97)
 		)
 		(stroke
 			(width 0)
@@ -3192,7 +3192,7 @@
 	)
 	(wire
 		(pts
-			(xy 242.57 146.05) (xy 240.03 146.05)
+			(xy 242.57 133.35) (xy 240.03 133.35)
 		)
 		(stroke
 			(width 0)
@@ -3242,7 +3242,7 @@
 	)
 	(wire
 		(pts
-			(xy 236.22 148.59) (xy 240.03 148.59)
+			(xy 236.22 135.89) (xy 240.03 135.89)
 		)
 		(stroke
 			(width 0)
@@ -3252,7 +3252,7 @@
 	)
 	(wire
 		(pts
-			(xy 242.57 146.05) (xy 242.57 153.67)
+			(xy 242.57 133.35) (xy 242.57 140.97)
 		)
 		(stroke
 			(width 0)
@@ -3362,7 +3362,7 @@
 	)
 	(wire
 		(pts
-			(xy 245.11 54.61) (xy 245.11 153.67)
+			(xy 245.11 54.61) (xy 245.11 140.97)
 		)
 		(stroke
 			(width 0)
@@ -3392,7 +3392,7 @@
 	)
 	(wire
 		(pts
-			(xy 240.03 133.35) (xy 240.03 146.05)
+			(xy 240.03 120.65) (xy 240.03 133.35)
 		)
 		(stroke
 			(width 0)
@@ -3402,7 +3402,7 @@
 	)
 	(wire
 		(pts
-			(xy 259.08 139.7) (xy 259.08 146.05)
+			(xy 259.08 127) (xy 259.08 133.35)
 		)
 		(stroke
 			(width 0)
@@ -3442,7 +3442,7 @@
 	)
 	(wire
 		(pts
-			(xy 236.22 125.73) (xy 236.22 148.59)
+			(xy 236.22 113.03) (xy 236.22 135.89)
 		)
 		(stroke
 			(width 0)
@@ -3592,7 +3592,7 @@
 	)
 	(wire
 		(pts
-			(xy 256.54 142.24) (xy 247.65 142.24)
+			(xy 256.54 129.54) (xy 247.65 129.54)
 		)
 		(stroke
 			(width 0)
@@ -3632,7 +3632,7 @@
 	)
 	(wire
 		(pts
-			(xy 236.22 125.73) (xy 240.03 125.73)
+			(xy 236.22 113.03) (xy 240.03 113.03)
 		)
 		(stroke
 			(width 0)
@@ -3642,7 +3642,7 @@
 	)
 	(wire
 		(pts
-			(xy 256.54 142.24) (xy 256.54 52.07)
+			(xy 256.54 129.54) (xy 256.54 52.07)
 		)
 		(stroke
 			(width 0)
@@ -3732,7 +3732,7 @@
 	)
 	(wire
 		(pts
-			(xy 259.08 146.05) (xy 250.19 146.05)
+			(xy 259.08 133.35) (xy 250.19 133.35)
 		)
 		(stroke
 			(width 0)
@@ -3832,7 +3832,7 @@
 	)
 	(wire
 		(pts
-			(xy 247.65 142.24) (xy 247.65 153.67)
+			(xy 247.65 129.54) (xy 247.65 140.97)
 		)
 		(stroke
 			(width 0)
@@ -3942,7 +3942,7 @@
 	)
 	(wire
 		(pts
-			(xy 259.08 139.7) (xy 264.16 139.7)
+			(xy 259.08 127) (xy 264.16 127)
 		)
 		(stroke
 			(width 0)
@@ -3982,7 +3982,7 @@
 	)
 	(wire
 		(pts
-			(xy 242.57 146.05) (xy 250.19 146.05)
+			(xy 242.57 133.35) (xy 250.19 133.35)
 		)
 		(stroke
 			(width 0)
@@ -4102,7 +4102,7 @@
 	)
 	(wire
 		(pts
-			(xy 236.22 123.19) (xy 236.22 125.73)
+			(xy 236.22 110.49) (xy 236.22 113.03)
 		)
 		(stroke
 			(width 0)
@@ -4132,7 +4132,7 @@
 	)
 	(wire
 		(pts
-			(xy 264.16 139.7) (xy 264.16 142.24)
+			(xy 264.16 127) (xy 264.16 129.54)
 		)
 		(stroke
 			(width 0)
@@ -4238,7 +4238,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 264.16 142.24 0)
+		(at 264.16 129.54 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -4249,7 +4249,7 @@
 		(fields_autoplaced yes)
 		(uuid "37660cd7-8548-439a-b113-b00da250bfb5")
 		(property "Reference" "#PWR011"
-			(at 264.16 148.59 0)
+			(at 264.16 135.89 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4260,7 +4260,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 264.16 147.32 0)
+			(at 264.16 134.62 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -4270,7 +4270,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 264.16 142.24 0)
+			(at 264.16 129.54 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4281,7 +4281,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 264.16 142.24 0)
+			(at 264.16 129.54 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4292,7 +4292,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 264.16 142.24 0)
+			(at 264.16 129.54 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4675,7 +4675,7 @@
 	)
 	(symbol
 		(lib_id "power:+5V")
-		(at 236.22 123.19 0)
+		(at 236.22 110.49 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -4686,7 +4686,7 @@
 		(fields_autoplaced yes)
 		(uuid "5aae1ab8-7036-43bd-97de-c9658fb64210")
 		(property "Reference" "#PWR013"
-			(at 236.22 127 0)
+			(at 236.22 114.3 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4697,7 +4697,7 @@
 			)
 		)
 		(property "Value" "+5V"
-			(at 236.22 118.11 0)
+			(at 236.22 105.41 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -4707,7 +4707,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 236.22 123.19 0)
+			(at 236.22 110.49 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4718,7 +4718,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 236.22 123.19 0)
+			(at 236.22 110.49 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4729,7 +4729,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"+5V\""
-			(at 236.22 123.19 0)
+			(at 236.22 110.49 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5187,7 +5187,7 @@
 	)
 	(symbol
 		(lib_id "Device:C_Polarized")
-		(at 240.03 129.54 0)
+		(at 240.03 116.84 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -5198,7 +5198,7 @@
 		(fields_autoplaced yes)
 		(uuid "706a8247-2a2e-4052-88b3-5694d4ab0318")
 		(property "Reference" "C2"
-			(at 243.84 127.3809 0)
+			(at 243.84 114.6809 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -5209,7 +5209,7 @@
 			)
 		)
 		(property "Value" "470uF/10V"
-			(at 243.84 129.9209 0)
+			(at 243.84 117.2209 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -5220,7 +5220,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_THT:CP_Radial_D10.0mm_P5.00mm"
-			(at 240.9952 133.35 0)
+			(at 240.9952 120.65 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5231,7 +5231,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 240.03 129.54 0)
+			(at 240.03 116.84 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5242,7 +5242,7 @@
 			)
 		)
 		(property "Description" "Polarized capacitor"
-			(at 240.03 129.54 0)
+			(at 240.03 116.84 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5269,7 +5269,7 @@
 	)
 	(symbol
 		(lib_id "Connector:Screw_Terminal_01x05")
-		(at 245.11 158.75 270)
+		(at 245.11 146.05 270)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -5280,7 +5280,7 @@
 		(fields_autoplaced yes)
 		(uuid "7de4d1ea-60c1-42dd-91be-cb0c9bdefede")
 		(property "Reference" "J9"
-			(at 245.11 162.56 90)
+			(at 245.11 149.86 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -5290,7 +5290,7 @@
 			)
 		)
 		(property "Value" "End switch (1,2) , Servo (3,4,5)"
-			(at 245.11 165.1 90)
+			(at 245.11 152.4 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -5300,7 +5300,7 @@
 			)
 		)
 		(property "Footprint" "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-1,5-5-5.08_1x05_P5.08mm_Horizontal"
-			(at 245.11 158.75 0)
+			(at 245.11 146.05 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5311,7 +5311,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 245.11 158.75 0)
+			(at 245.11 146.05 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -5322,7 +5322,7 @@
 			)
 		)
 		(property "Description" "Generic screw terminal, single row, 01x05, script generated (kicad-library-utils/schlib/autogen/connector/)"
-			(at 245.11 158.75 0)
+			(at 245.11 146.05 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)

@@ -38,6 +38,8 @@ static const int MOTOR_DEFAULT_FREQ = 1000; // Hz
 
 // Servo settings
 static const uint8_t SERVO_MAX_ANGLE = 180;
+static const uint8_t SERVO_OPEN_ANGLE = 40;
+static const uint8_t SERVO_CLOSE_ANGLE = 66;
 
 // Dispenser PWM settings
 static const int DISPENSER_PWM_FREQ = 1000; // Hz - back to 1000 Hz for microstepping
