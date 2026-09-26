@@ -32,11 +32,11 @@ static const int PWM_CHANNEL = 7;
 static const int PWM_RESOLUTION = 8; // bits
 static const int PWM_DEFAULT_DUTY = 128; // 50%
 
-// Motor settings
-static const int MOTOR_SPEED_MAX = 512;
-static const int MOTOR_DEFAULT_FREQ = 1000; // Hz
+// Pull motor settings
+static const int PULL_MOTOR_SPEED_MAX = 512;
+static const int PULL_MOTOR_DEFAULT_FREQ = 1000; // Hz
 
-// Servo settings
+// Release servo settings
 static const uint8_t SERVO_MAX_ANGLE = 180;
 static const uint8_t SERVO_OPEN_ANGLE = 40;
 static const uint8_t SERVO_CLOSE_ANGLE = 66;
@@ -52,3 +52,8 @@ static const uint8_t DISPENSER_MAX_DURATION = 10; // seconds
 static const uint16_t DISPENSER_TOP_SPEED_HZ = 2000; // maximum speed in Hz
 static const uint16_t DISPENSER_ACCEL_INITIAL = 200; // initial/fallback acceleration in steps/s²
 static const uint8_t DISPENSER_ACCEL_PHASE_PERCENT = 20; // % of duration for acceleration phase
+
+//Sequence settings
+static const uint32_t SEQUENCE_MOVE_UP_SLOW_DURATION_MS = 2000;
+static const uint32_t SEQUENCE_MOVE_UP_FAST_DURATION_MS = 40000;
+static const uint8_t SEQUENCE_DISPENSE_DURATION_SECONDS = 8;

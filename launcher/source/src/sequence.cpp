@@ -2,11 +2,10 @@
 #include "../include/config.h"
 #include "../include/led.h"
 #include "../include/release_servo.h"
+#include "../include/dispenser.h"
 #include <Arduino.h>
 
 #define STATE_LED LED_1
-#define MOVE_UP_SLOW_DURATION_MS 2000
-#define MOVE_UP_FAST_DURATION_MS 40000
 
 enum SequenceState {
     IDLE,
@@ -27,6 +26,7 @@ static void vTimerCallback(TimerHandle_t xTimer) {
         Serial.println("Timer expired, moving up fast");
         pull_motor_set_speed(512);
         sequenceState = MOVE_UP_FAST;
+        dispenser_control(1);
         if (moveUpFastTimer != NULL) {
             xTimerReset(moveUpFastTimer, 0);
         }
@@ -71,10 +71,10 @@ void sequence_init() {
     lastInterruptTick = xTaskGetTickCount();
     attachInterrupt(digitalPinToInterrupt(PULL_MOTOR_END_SWITCH_PIN), switch_isr, CHANGE);
 
-    moveUpSlowTimer =
-        xTimerCreate("MoveUpSlowTimer", pdMS_TO_TICKS(MOVE_UP_SLOW_DURATION_MS), pdFALSE, (void*)0, vTimerCallback);
-    moveUpFastTimer =
-        xTimerCreate("MoveUpFastTimer", pdMS_TO_TICKS(MOVE_UP_FAST_DURATION_MS), pdFALSE, (void*)0, vTimerCallback);
+    moveUpSlowTimer = xTimerCreate("MoveUpSlowTimer", pdMS_TO_TICKS(SEQUENCE_MOVE_UP_SLOW_DURATION_MS), pdFALSE,
+                                   (void*)0, vTimerCallback);
+    moveUpFastTimer = xTimerCreate("MoveUpFastTimer", pdMS_TO_TICKS(SEQUENCE_MOVE_UP_FAST_DURATION_MS), pdFALSE,
+                                   (void*)0, vTimerCallback);
 }
 
 void sequence_start() { 

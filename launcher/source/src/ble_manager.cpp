@@ -68,8 +68,8 @@ class MotorCharCallbacks : public NimBLECharacteristicCallbacks {
                              (static_cast<int32_t>(data[2]) << 8) | (static_cast<int32_t>(data[3]));
 
         // Clamp to allowed range
-        if (speedValue > MOTOR_SPEED_MAX) speedValue = MOTOR_SPEED_MAX;
-        if (speedValue < -MOTOR_SPEED_MAX) speedValue = -MOTOR_SPEED_MAX;
+        if (speedValue > PULL_MOTOR_SPEED_MAX) speedValue = PULL_MOTOR_SPEED_MAX;
+        if (speedValue < -PULL_MOTOR_SPEED_MAX) speedValue = -PULL_MOTOR_SPEED_MAX;
 
         if (pull_motor_cb) pull_motor_cb(speedValue);
 
