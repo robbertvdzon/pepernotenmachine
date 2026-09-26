@@ -4327,22 +4327,10 @@
 		)
 	)
 	(junction
-		(at 128.27 375.92)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "0166cca7-e8b2-4ca2-bebd-cb02323a5773")
-	)
-	(junction
 		(at 264.16 250.19)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "0737c988-9924-42e7-9b6c-66288bc86143")
-	)
-	(junction
-		(at 95.25 375.92)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "083da077-6a87-4bfc-99ac-8961b97acd38")
 	)
 	(junction
 		(at 398.78 287.02)
@@ -4603,24 +4591,6 @@
 		(uuid "a6c869f4-ace2-475d-abdc-a29462d4de04")
 	)
 	(junction
-		(at 90.17 283.21)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "a9447c94-a8ce-4bd3-aabc-1c9b5fbe91a0")
-	)
-	(junction
-		(at 95.25 288.29)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "ab70310d-365f-4c7f-b276-86816cc83ef2")
-	)
-	(junction
-		(at 100.33 292.1)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "b471b00e-d8d2-4217-a3de-8b29c61ac1cb")
-	)
-	(junction
 		(at 344.17 232.41)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -4723,12 +4693,6 @@
 		(uuid "f1aca404-f90e-4a9d-b533-6671c1104b50")
 	)
 	(junction
-		(at 100.33 375.92)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "f822aed5-d0b6-4c30-a3d8-0612f4bce616")
-	)
-	(junction
 		(at 246.38 283.21)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -4761,16 +4725,6 @@
 			(type default)
 		)
 		(uuid "01332ad4-9b3f-4b9b-8876-057b52a7416b")
-	)
-	(wire
-		(pts
-			(xy 95.25 375.92) (xy 100.33 375.92)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "01aa7e23-269c-4f8f-8edb-4de65316a902")
 	)
 	(wire
 		(pts
@@ -5084,16 +5038,6 @@
 	)
 	(wire
 		(pts
-			(xy 90.17 369.57) (xy 90.17 375.92)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "1de58646-6fc7-4649-853e-dc5e80a2b63e")
-	)
-	(wire
-		(pts
 			(xy 364.49 288.29) (xy 377.19 288.29)
 		)
 		(stroke
@@ -5264,7 +5208,7 @@
 	)
 	(wire
 		(pts
-			(xy 133.35 283.21) (xy 90.17 283.21)
+			(xy 72.39 283.21) (xy 133.35 283.21)
 		)
 		(stroke
 			(width 0)
@@ -5411,16 +5355,6 @@
 			(type default)
 		)
 		(uuid "45a5caf9-9a34-4af0-bdf5-24304bab011d")
-	)
-	(wire
-		(pts
-			(xy 95.25 369.57) (xy 95.25 375.92)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "45bc6dac-cc9a-4a00-8278-66157901d3b5")
 	)
 	(wire
 		(pts
@@ -6184,16 +6118,6 @@
 	)
 	(wire
 		(pts
-			(xy 90.17 358.14) (xy 90.17 361.95)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "8e07cc1c-e457-431d-8570-2728ccc048bb")
-	)
-	(wire
-		(pts
 			(xy 336.55 260.35) (xy 336.55 252.73)
 		)
 		(stroke
@@ -6221,16 +6145,6 @@
 			(type default)
 		)
 		(uuid "9694b63d-02b0-4232-812b-aee0a683b3c7")
-	)
-	(wire
-		(pts
-			(xy 90.17 283.21) (xy 72.39 283.21)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "96ea53ef-a9ea-4f6a-8d90-1d2cd4cd3216")
 	)
 	(wire
 		(pts
@@ -6324,16 +6238,6 @@
 	)
 	(wire
 		(pts
-			(xy 100.33 375.92) (xy 128.27 375.92)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "9f077657-ee2d-4101-ac85-343838c55b7b")
-	)
-	(wire
-		(pts
 			(xy 134.62 204.47) (xy 138.43 204.47)
 		)
 		(stroke
@@ -6414,16 +6318,6 @@
 	)
 	(wire
 		(pts
-			(xy 95.25 288.29) (xy 95.25 350.52)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a34c8614-c4b7-42fc-b042-5a5965666734")
-	)
-	(wire
-		(pts
 			(xy 386.08 224.79) (xy 430.53 224.79)
 		)
 		(stroke
@@ -6461,16 +6355,6 @@
 			(type default)
 		)
 		(uuid "a4c46a4e-3ada-462b-9984-258e44f10a9c")
-	)
-	(wire
-		(pts
-			(xy 100.33 369.57) (xy 100.33 375.92)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a5ea250a-bb91-4e50-a242-2a5931ab2427")
 	)
 	(wire
 		(pts
@@ -6624,16 +6508,6 @@
 	)
 	(wire
 		(pts
-			(xy 100.33 292.1) (xy 100.33 350.52)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b4dfe385-7e10-4c8b-9ea4-e699ae85aa79")
-	)
-	(wire
-		(pts
 			(xy 236.22 250.19) (xy 241.3 250.19)
 		)
 		(stroke
@@ -6641,16 +6515,6 @@
 			(type default)
 		)
 		(uuid "b56b693a-9a76-4416-ba26-42313588c930")
-	)
-	(wire
-		(pts
-			(xy 95.25 358.14) (xy 95.25 361.95)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b5df277d-5978-476b-a6cb-f33853da83a9")
 	)
 	(wire
 		(pts
@@ -6811,16 +6675,6 @@
 			(type default)
 		)
 		(uuid "c97a33ea-9b93-4bac-a3fb-76dac889e875")
-	)
-	(wire
-		(pts
-			(xy 90.17 375.92) (xy 95.25 375.92)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "ca13ac63-2c88-40f0-8cd9-51f40842c56a")
 	)
 	(wire
 		(pts
@@ -7204,16 +7058,6 @@
 	)
 	(wire
 		(pts
-			(xy 100.33 358.14) (xy 100.33 361.95)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "ebefdf52-317f-4144-b380-31ce02f24fb8")
-	)
-	(wire
-		(pts
 			(xy 241.3 265.43) (xy 241.3 280.67)
 		)
 		(stroke
@@ -7311,16 +7155,6 @@
 			(type default)
 		)
 		(uuid "f3cd962f-0970-4933-970d-37bd67a702f2")
-	)
-	(wire
-		(pts
-			(xy 90.17 283.21) (xy 90.17 350.52)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "f40ab081-46c8-49d0-85dc-adaa864c305a")
 	)
 	(wire
 		(pts
@@ -7963,88 +7797,6 @@
 			(project "schakelbord"
 				(path "/6cfebf62-f0e9-4109-b197-471bd8c5fd6c"
 					(reference "D8")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:R")
-		(at 95.25 354.33 180)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "11280ec2-252f-4334-a2dd-f9502124cdd6")
-		(property "Reference" "R15"
-			(at 97.79 353.0599 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Value" "1K"
-			(at 97.79 355.5999 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0204_L3.6mm_D1.6mm_P7.62mm_Horizontal"
-			(at 97.028 354.33 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 95.25 354.33 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Resistor"
-			(at 95.25 354.33 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "6152cfae-62a8-4a10-b5c2-3d20243c3f28")
-		)
-		(pin "2"
-			(uuid "4cd66386-b376-4c8b-8d8e-f9f7904020ee")
-		)
-		(instances
-			(project "schakelbord"
-				(path "/6cfebf62-f0e9-4109-b197-471bd8c5fd6c"
-					(reference "R15")
 					(unit 1)
 				)
 			)
@@ -8772,99 +8524,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:LED")
-		(at 90.17 365.76 90)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "220cd697-83b5-434e-85e6-992ee14bebd9")
-		(property "Reference" "D12"
-			(at 93.98 366.0774 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Value" "LED"
-			(at 93.98 368.6174 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" "LED_THT:LED_D5.0mm"
-			(at 90.17 365.76 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 90.17 365.76 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Light emitting diode"
-			(at 90.17 365.76 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Sim.Pins" "1=K 2=A"
-			(at 90.17 365.76 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "93205c9c-0093-4b5b-ab73-803f373ab90f")
-		)
-		(pin "1"
-			(uuid "dde2ca4d-6801-4ac0-b25e-39a6b4e69c5d")
-		)
-		(instances
-			(project "schakelbord"
-				(path "/6cfebf62-f0e9-4109-b197-471bd8c5fd6c"
-					(reference "D12")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "Device:R")
 		(at 392.43 128.27 0)
 		(unit 1)
@@ -8942,88 +8601,6 @@
 			(project "schakelbord"
 				(path "/6cfebf62-f0e9-4109-b197-471bd8c5fd6c"
 					(reference "R59")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:R")
-		(at 90.17 354.33 180)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "2a3d643b-94ea-4454-957b-cbd94cd64986")
-		(property "Reference" "R16"
-			(at 92.71 353.0599 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Value" "1K"
-			(at 92.71 355.5999 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0204_L3.6mm_D1.6mm_P7.62mm_Horizontal"
-			(at 91.948 354.33 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 90.17 354.33 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Resistor"
-			(at 90.17 354.33 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "f171473e-789c-40c4-a017-a78aa1efdc14")
-		)
-		(pin "2"
-			(uuid "3e2a28b7-6115-43c3-92fa-93fc24833a66")
-		)
-		(instances
-			(project "schakelbord"
-				(path "/6cfebf62-f0e9-4109-b197-471bd8c5fd6c"
-					(reference "R16")
 					(unit 1)
 				)
 			)
@@ -9299,89 +8876,6 @@
 			(project "schakelbord"
 				(path "/6cfebf62-f0e9-4109-b197-471bd8c5fd6c"
 					(reference "Q1")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:R")
-		(at 100.33 354.33 180)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "2adecdf3-3497-46a1-b045-479744f2bcf9")
-		(property "Reference" "R14"
-			(at 102.87 353.0599 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Value" "1K"
-			(at 102.87 355.5999 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" "Resistor_THT:R_Axial_DIN0204_L3.6mm_D1.6mm_P7.62mm_Horizontal"
-			(at 102.108 354.33 90)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 100.33 354.33 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Resistor"
-			(at 100.33 354.33 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "d3fb8778-ead4-46e0-8f54-233fae1c58ea")
-		)
-		(pin "2"
-			(uuid "a7922e73-1a59-4b80-bf2f-08645031f447")
-		)
-		(instances
-			(project "schakelbord"
-				(path "/6cfebf62-f0e9-4109-b197-471bd8c5fd6c"
-					(reference "R14")
 					(unit 1)
 				)
 			)
@@ -10055,99 +9549,6 @@
 			(project "schakelbord"
 				(path "/6cfebf62-f0e9-4109-b197-471bd8c5fd6c"
 					(reference "J15")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:LED")
-		(at 100.33 365.76 90)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "4377371d-36a6-4d9a-8b20-b0ea447bfe7b")
-		(property "Reference" "D10"
-			(at 104.14 366.0774 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Value" "LED"
-			(at 104.14 368.6174 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" "LED_THT:LED_D5.0mm"
-			(at 100.33 365.76 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 100.33 365.76 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Light emitting diode"
-			(at 100.33 365.76 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Sim.Pins" "1=K 2=A"
-			(at 100.33 365.76 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "1644695c-8b0b-4c18-9137-fb60985cce11")
-		)
-		(pin "1"
-			(uuid "719235c1-c40c-4fc4-845b-bee9f4503d31")
-		)
-		(instances
-			(project "schakelbord"
-				(path "/6cfebf62-f0e9-4109-b197-471bd8c5fd6c"
-					(reference "D10")
 					(unit 1)
 				)
 			)
@@ -11985,99 +11386,6 @@
 			(project "schakelbord"
 				(path "/6cfebf62-f0e9-4109-b197-471bd8c5fd6c"
 					(reference "D5")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:LED")
-		(at 95.25 365.76 90)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "6abe980b-8543-41e9-854e-7014c05d2037")
-		(property "Reference" "D11"
-			(at 99.06 366.0774 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Value" "LED"
-			(at 99.06 368.6174 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify right)
-			)
-		)
-		(property "Footprint" "LED_THT:LED_D5.0mm"
-			(at 95.25 365.76 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 95.25 365.76 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Light emitting diode"
-			(at 95.25 365.76 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Sim.Pins" "1=K 2=A"
-			(at 95.25 365.76 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "2fe2fb73-2be4-41c8-9718-68f0a0c294bd")
-		)
-		(pin "1"
-			(uuid "3991e63a-8c5f-404a-a496-93976da5f825")
-		)
-		(instances
-			(project "schakelbord"
-				(path "/6cfebf62-f0e9-4109-b197-471bd8c5fd6c"
-					(reference "D11")
 					(unit 1)
 				)
 			)
