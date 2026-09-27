@@ -1,0 +1,4 @@
+(sym_lib_table
+	(version 7)
+	(lib (name "Pi") (type "KiCad") (uri "/Users/ferryspiering/repos/pepernotenmachine/bediening/schema") (options "") (descr ""))
+)
