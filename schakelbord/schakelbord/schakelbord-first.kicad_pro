@@ -211,12 +211,7 @@
       ],
       "track_widths": [
         0.0,
-        0.4,
-        0.5,
-        0.6,
-        0.8,
-        1.0,
-        3.0
+        1.0
       ],
       "tuning_pattern_settings": {
         "diff_pair_defaults": {
@@ -507,7 +502,7 @@
     "pinned_symbol_libs": []
   },
   "meta": {
-    "filename": "schakelbord.kicad_pro",
+    "filename": "schakelbord-first.kicad_pro",
     "version": 3
   },
   "net_settings": {
@@ -527,8 +522,8 @@
         "schematic_color": "rgba(0, 0, 0, 0.000)",
         "track_width": 0.2,
         "tuning_profile": "",
-        "via_diameter": 2.0,
-        "via_drill": 1.0,
+        "via_diameter": 0.6,
+        "via_drill": 0.3,
         "wire_width": 6
       }
     ],
