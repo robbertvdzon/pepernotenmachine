@@ -2923,6 +2923,403 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "PCM_SparkFun-Capacitor:0.1uF_0402_16V_10%"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0.254)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "C"
+				(at 0.635 2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Value" "0.1uF"
+				(at 0.635 -2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Footprint" "PCM_SparkFun-Capacitor:C_0402_1005Metric"
+				(at 0 -11.43 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "https://cdn.sparkfun.com/assets/8/a/4/a/5/Kemet_Capacitor_Datasheet.pdf"
+				(at 0 -13.97 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Unpolarized capacitor"
+				(at 0 -19.05 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "PROD_ID" "CAP-25565"
+				(at 0 -16.51 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Voltage" "16V"
+				(at 0 -6.35 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Tolerance" "10%"
+				(at 0 -8.89 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "SparkFun cap capacitor 100nF"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "C_*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "0.1uF_0402_16V_10%_0_1"
+				(polyline
+					(pts
+						(xy -1.524 0.508) (xy 1.524 0.508)
+					)
+					(stroke
+						(width 0.3048)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.524 -0.508) (xy 1.524 -0.508)
+					)
+					(stroke
+						(width 0.3302)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "0.1uF_0402_16V_10%_1_1"
+				(pin passive line
+					(at 0 2.54 270)
+					(length 2.032)
+					(name ""
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -2.54 90)
+					(length 2.032)
+					(name ""
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "PCM_SparkFun-Capacitor:470uF_10x10_25V_20%"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0.254)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "C"
+				(at 0.635 2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Value" "470uF"
+				(at 0.635 -2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Footprint" "PCM_SparkFun-Capacitor:Electrolytic_10.3x10.3mm"
+				(at 0 -17.78 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "https://www.nichicon.co.jp/english/series_items/catalog_pdf/e-uud.pdf"
+				(at 1.27 -15.24 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Polarized capacitor, US symbol"
+				(at 0 -20.32 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "PROD_ID" ""
+				(at 0 -12.7 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Voltage" "25V"
+				(at 0 -7.62 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Tolerance" "20%"
+				(at 0 -10.16 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "SparkFun cap capacitor"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "CP_*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "470uF_10x10_25V_20%_0_1"
+				(polyline
+					(pts
+						(xy -1.524 0.508) (xy 1.524 0.508)
+					)
+					(stroke
+						(width 0.3048)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.27 1.524) (xy -0.762 1.524)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.016 1.27) (xy -1.016 1.778)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(arc
+					(start -1.524 -0.762)
+					(mid 0 -0.3734)
+					(end 1.524 -0.762)
+					(stroke
+						(width 0.3048)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "470uF_10x10_25V_20%_1_1"
+				(pin passive line
+					(at 0 2.54 270)
+					(length 2.032)
+					(name ""
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -2.54 90)
+					(length 2.032)
+					(name ""
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "Relay:SANYOU_SRD_Form_C"
 			(exclude_from_sim no)
 			(in_bom yes)
@@ -4411,6 +4808,12 @@
 		(uuid "1c364a6f-5364-4d29-abad-1b1e04fc5805")
 	)
 	(junction
+		(at 52.07 356.87)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "21047cfb-04d3-4d7b-9b54-9495f1bf141b")
+	)
+	(junction
 		(at 401.32 116.84)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -4531,6 +4934,12 @@
 		(uuid "61f7d9ec-7df0-42ce-8632-c98a7773efec")
 	)
 	(junction
+		(at 52.07 372.11)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "62defb9a-848c-4d6a-8445-7aad7698f159")
+	)
+	(junction
 		(at 251.46 285.75)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -4619,6 +5028,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "918160c4-2860-4108-8955-236471413c0f")
+	)
+	(junction
+		(at 220.98 337.82)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "92fb00c6-277e-46c9-823b-e0d6634bae53")
 	)
 	(junction
 		(at 353.06 190.5)
@@ -5263,6 +5678,16 @@
 			(type default)
 		)
 		(uuid "29b2e9b9-7f05-4c0e-89b5-7d83ea297e60")
+	)
+	(wire
+		(pts
+			(xy 52.07 372.11) (xy 59.69 372.11)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2b747449-5af9-43d8-b0a7-f39eedf8927e")
 	)
 	(wire
 		(pts
@@ -6226,6 +6651,16 @@
 	)
 	(wire
 		(pts
+			(xy 220.98 337.82) (xy 220.98 344.17)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7d02f47a-6d99-45b9-bc74-061035fb64b2")
+	)
+	(wire
+		(pts
 			(xy 31.75 369.57) (xy 35.56 369.57)
 		)
 		(stroke
@@ -6333,6 +6768,16 @@
 			(type default)
 		)
 		(uuid "8369e541-4b88-4d98-9a68-562e88ab7d88")
+	)
+	(wire
+		(pts
+			(xy 52.07 356.87) (xy 59.69 356.87)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "83b05ff3-c8a2-4c3a-9764-c13232d4d308")
 	)
 	(wire
 		(pts
@@ -6513,6 +6958,16 @@
 			(type default)
 		)
 		(uuid "98b6fd80-6fb6-404a-a214-a042306b7044")
+	)
+	(wire
+		(pts
+			(xy 220.98 323.85) (xy 220.98 337.82)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "98cfa0d8-4a9b-4a87-af93-b42e8c517e97")
 	)
 	(wire
 		(pts
@@ -6726,6 +7181,16 @@
 	)
 	(wire
 		(pts
+			(xy 59.69 356.87) (xy 59.69 358.14)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a8c5e8a8-8558-4d93-8fa1-dd4df41f8cb2")
+	)
+	(wire
+		(pts
 			(xy 184.15 308.61) (xy 184.15 322.58)
 		)
 		(stroke
@@ -6916,6 +7381,16 @@
 	)
 	(wire
 		(pts
+			(xy 59.69 363.22) (xy 59.69 372.11)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bb62935f-e533-47dd-8d92-7fa8d09278bf")
+	)
+	(wire
+		(pts
 			(xy 383.54 226.06) (xy 421.64 226.06)
 		)
 		(stroke
@@ -6973,16 +7448,6 @@
 			(type default)
 		)
 		(uuid "c47b6f0d-7e2a-4d3d-8bc9-f18eb24772a4")
-	)
-	(wire
-		(pts
-			(xy 220.98 323.85) (xy 220.98 327.66)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c49806b2-6db3-4d37-8f90-72655f5907c6")
 	)
 	(wire
 		(pts
@@ -7173,6 +7638,16 @@
 			(type default)
 		)
 		(uuid "d3988918-bbe7-42b2-8cf1-8d5afcf39d2a")
+	)
+	(wire
+		(pts
+			(xy 226.06 337.82) (xy 231.14 337.82)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d4559022-124c-4544-bb0d-900643664392")
 	)
 	(wire
 		(pts
@@ -7413,6 +7888,16 @@
 			(type default)
 		)
 		(uuid "e823b2ca-1787-4a34-a21f-1b1fd2fd367c")
+	)
+	(wire
+		(pts
+			(xy 231.14 328.93) (xy 231.14 337.82)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e835f9ee-ef03-4b96-989f-5dcea953c326")
 	)
 	(wire
 		(pts
@@ -16523,6 +17008,84 @@
 		)
 	)
 	(symbol
+		(lib_id "power:+5V")
+		(at 231.14 328.93 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "b3d102a7-b4e5-4321-9945-2047208c03df")
+		(property "Reference" "#PWR018"
+			(at 231.14 332.74 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+3.3V"
+			(at 231.14 323.85 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 231.14 328.93 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 231.14 328.93 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+5V\""
+			(at 231.14 328.93 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "2a588fb9-d246-4133-8d20-723ea8a5c388")
+		)
+		(instances
+			(project "schakelbord"
+				(path "/6cfebf62-f0e9-4109-b197-471bd8c5fd6c"
+					(reference "#PWR018")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:LED")
 		(at 246.38 254 90)
 		(unit 1)
@@ -17983,7 +18546,6 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "cc4ce318-0b05-4626-bd80-12f2f23ca24d")
 		(property "Reference" "#PWR08"
 			(at 236.22 248.92 0)
@@ -17996,8 +18558,8 @@
 				)
 			)
 		)
-		(property "Value" "+5V"
-			(at 236.22 240.03 0)
+		(property "Value" "+3.3V"
+			(at 234.696 240.792 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18005,6 +18567,7 @@
 					(face "STIX Two Math")
 					(size 1.27 1.27)
 				)
+				(justify left)
 			)
 		)
 		(property "Footprint" ""
@@ -18047,6 +18610,117 @@
 			(project "schakelbord"
 				(path "/6cfebf62-f0e9-4109-b197-471bd8c5fd6c"
 					(reference "#PWR08")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "PCM_SparkFun-Capacitor:0.1uF_0402_16V_10%")
+		(at 223.52 337.82 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "cf421421-c150-4252-b275-29556ea9dfff")
+		(property "Reference" "C1"
+			(at 223.5263 326.39 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "0.1uF"
+			(at 223.5263 328.93 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "PCM_SparkFun-Capacitor:C_0402_1005Metric"
+			(at 234.95 337.82 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "https://cdn.sparkfun.com/assets/8/a/4/a/5/Kemet_Capacitor_Datasheet.pdf"
+			(at 237.49 337.82 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Unpolarized capacitor"
+			(at 242.57 337.82 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "PROD_ID" "CAP-25565"
+			(at 240.03 337.82 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Voltage" "16V"
+			(at 223.5263 331.47 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Tolerance" "10%"
+			(at 223.5263 334.01 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "2"
+			(uuid "1d011f58-2b8c-452c-b711-33926992a8c3")
+		)
+		(pin "1"
+			(uuid "0b0821dd-a9d4-4dd8-89a3-e95a32441025")
+		)
+		(instances
+			(project "schakelbord"
+				(path "/6cfebf62-f0e9-4109-b197-471bd8c5fd6c"
+					(reference "C1")
 					(unit 1)
 				)
 			)
@@ -19662,6 +20336,121 @@
 		)
 	)
 	(symbol
+		(lib_id "PCM_SparkFun-Capacitor:470uF_10x10_25V_20%")
+		(at 59.69 360.68 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "f167fd2f-4974-4aac-8323-3b975bc39ca9")
+		(property "Reference" "C2"
+			(at 62.23 356.4381 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "470uF"
+			(at 62.23 358.9781 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "PCM_SparkFun-Capacitor:Electrolytic_10.3x10.3mm"
+			(at 59.69 378.46 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "https://www.nichicon.co.jp/english/series_items/catalog_pdf/e-uud.pdf"
+			(at 60.96 375.92 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Polarized capacitor, US symbol"
+			(at 59.69 381 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "PROD_ID" ""
+			(at 59.69 373.38 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Voltage" "25V"
+			(at 62.23 361.5181 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Tolerance" "20%"
+			(at 62.23 364.0581 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(pin "2"
+			(uuid "dbea5dbd-3880-4a30-aaf1-a047e14351d7")
+		)
+		(pin "1"
+			(uuid "c47cf843-6638-40e6-b900-323f0579d384")
+		)
+		(instances
+			(project "schakelbord"
+				(path "/6cfebf62-f0e9-4109-b197-471bd8c5fd6c"
+					(reference "C2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Transistor_BJT:BC337")
 		(at 349.25 308.61 0)
 		(unit 1)
@@ -19773,7 +20562,7 @@
 	)
 	(symbol
 		(lib_id "power:GND")
-		(at 220.98 327.66 0)
+		(at 220.98 344.17 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -19784,7 +20573,7 @@
 		(fields_autoplaced yes)
 		(uuid "f4da2f1b-9ad4-4804-8003-d0270cb96135")
 		(property "Reference" "#PWR019"
-			(at 220.98 334.01 0)
+			(at 220.98 350.52 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19795,7 +20584,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 220.98 332.74 0)
+			(at 220.98 349.25 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -19805,7 +20594,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 220.98 327.66 0)
+			(at 220.98 344.17 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19816,7 +20605,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 220.98 327.66 0)
+			(at 220.98 344.17 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -19827,7 +20616,7 @@
 			)
 		)
 		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 220.98 327.66 0)
+			(at 220.98 344.17 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
