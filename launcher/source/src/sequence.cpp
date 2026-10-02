@@ -26,6 +26,7 @@ static void vTimerCallback(TimerHandle_t xTimer) {
         Serial.println("Timer expired, moving up fast");
         pull_motor_set_speed(512);
         sequenceState = MOVE_UP_FAST;
+        dispenser_set_duration(SEQUENCE_DISPENSE_DURATION_SECONDS);
         dispenser_control(1);
         if (moveUpFastTimer != NULL) {
             xTimerReset(moveUpFastTimer, 0);
