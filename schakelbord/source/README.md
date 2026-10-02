@@ -10,14 +10,18 @@ All pins and options are in [`include/config.h`](include/config.h).
 
 | Function | Connector | Pins | Notes |
 | --- | --- | --- | --- |
-| Relays 1-8 | J8-J11 | MCP23017 GPB0-GPB7 | Active HIGH (via BC337) |
-| Generic outputs 1-8 | J6, J7 | MCP23017 GPA0-GPA7 | Active LOW (sinking) |
-| MOSFETs 1-3 | J3 | D6, D7, D8 | PWM, 1 kHz |
-| Generic digital inputs 1-4 | J2 | D2-D5 | Active LOW, internal pull-up |
-| Analog inputs 1-4 | J4 | A0-A3 | Reported in millivolts |
-| Fog machine trigger | J5 | D9 | HIGH = fogging |
-| Fog machine heat sensor | J5 | A6 | ~0 V heating, ~2.5 V ready |
-| Fog machine connected | J5 | A7 | HIGH = connected |
+| Relays 1-2 | J21 | MCP23017 GPB0-GPB1 | Active HIGH (via BC337) |
+| Relays 3-4 | J20 | MCP23017 GPB2-GPB3 | Active HIGH (via BC337) |
+| Relays 5-6 | J19 | MCP23017 GPB4-GPB5 | Active HIGH (via BC337) |
+| Relays 7-8 | J15 | MCP23017 GPB6-GPB7 | Active HIGH (via BC337) |
+| Generic outputs 1-4 | J17 | MCP23017 GPA0-GPA3 | Active LOW (sinking) |
+| Generic outputs 5-8 | J18 | MCP23017 GPA4-GPA7 | Active LOW (sinking) |
+| MOSFETs 1-3 | J4 | D2, D3, D4 | PWM, 1 kHz |
+| Generic digital inputs 1-4 | J12 | D5-D8 | Active LOW, internal pull-up |
+| Analog inputs 1-4 | J16 | A1, A2, A3, A6 | Reported in millivolts |
+| Fog machine trigger | J1 | D9 | HIGH = fogging |
+| Fog machine heat sensor | J1 | A0 | ~0 V heating, ~2.5 V ready |
+| Fog machine connected | J1 | A7 | HIGH = connected |
 | MCP23017 I2C | | SDA = A4, SCL = A5 | Address 0x20 |
 
 ## BLE service
@@ -52,10 +56,10 @@ The full UUIDs are in `include/config.h` (only the first byte group differs).
 
 ## Fog machine behavior
 
-State is derived from A7 (connected) and A6 (heat sensor, with 100 mV hysteresis around 1 V: ready at 1.1 V or more, back to heating below 0.9 V).
+State is derived from A7 (connected) and A0 (heat sensor, with 100 mV hysteresis around 1 V: ready at 1.1 V or more, back to heating below 0.9 V).
 
 1. Start is only accepted in state *ready*. D9 goes HIGH and the state becomes *fogging*.
-2. After the burst duration, D9 goes LOW (the state stays *fogging*). After 200 ms A6 is measured.
+2. After the burst duration, D9 goes LOW (the state stays *fogging*). After 200 ms A0 is measured.
 3. If the machine is still hot enough, the next burst starts. Otherwise the session ends and the state is re-evaluated (normally *heating up*).
 4. A stop command sets D9 LOW immediately and, after 200 ms, the state is re-evaluated.
 5. If A7 goes LOW while fogging, fogging stops and the state becomes *not connected*.
@@ -74,7 +78,7 @@ When the last connected client disconnects, all relays, MOSFETs and outputs are 
 - `src/mcp23017.cpp` owns the I2C bus in one task; other modules only set shadow bits.
 - `src/relays.cpp` relay states and blink timers.
 - `src/mosfets.cpp` LEDC PWM per MOSFET.
-- `src/digital_outputs.cpp` generic outputs on J6/J7.
+- `src/digital_outputs.cpp` generic outputs on J17/J18.
 - `src/digital_inputs.cpp` interrupt driven, debounced inputs.
 - `src/analog_inputs.cpp` periodic sampling with change notifications.
 - `src/fog_machine.cpp` fog machine state machine.

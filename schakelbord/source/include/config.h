@@ -22,23 +22,22 @@ static const uint32_t SERIAL_WAIT_TIMEOUT_MS = 2000;  // Max wait for a USB seri
 // ---------------------------------------------------------------------------
 // Pins (Arduino Nano ESP32)
 // ---------------------------------------------------------------------------
-// J2: generic digital inputs, active LOW. Input number n (1..4) is entry n-1 of this array.
-// NOTE: input 1 = D2 ... input 4 = D5 (J2 pin 4 = D2 ... J2 pin 1 = D5). Re-order here if you prefer J2 pin order.
+// J12: generic digital inputs, active LOW. Input number n (1..4) is entry n-1 of this array.
 static const uint8_t DIGITAL_INPUT_COUNT = 4;
-static const uint8_t DIGITAL_INPUT_PINS[DIGITAL_INPUT_COUNT] = {D2, D3, D4, D5};
+static const uint8_t DIGITAL_INPUT_PINS[DIGITAL_INPUT_COUNT] = {D5, D6, D7, D8};
 static const bool DIGITAL_INPUT_USE_PULLUP = true;  // Internal pull-up (inputs are active LOW)
 
-// J3: MOSFET gate drivers (IRLZ44N, active HIGH, gate pull-down on the board)
+// J4: MOSFET gate drivers (IRLZ44N, active HIGH, gate pull-down on the board)
 static const uint8_t MOSFET_COUNT = 3;
-static const uint8_t MOSFET_PINS[MOSFET_COUNT] = {D6, D7, D8};
+static const uint8_t MOSFET_PINS[MOSFET_COUNT] = {D2, D3, D4};
 
-// J4: analog inputs
+// J16: analog inputs
 static const uint8_t ANALOG_INPUT_COUNT = 4;
-static const uint8_t ANALOG_INPUT_PINS[ANALOG_INPUT_COUNT] = {A0, A1, A2, A3};
+static const uint8_t ANALOG_INPUT_PINS[ANALOG_INPUT_COUNT] = {A1, A2, A3, A6};
 
-// J5: fog machine
+// J1: fog machine
 static const uint8_t FOG_TRIGGER_PIN = D9;    // HIGH = transistor on = shorts the two trigger pins of the fog machine
-static const uint8_t FOG_SENSE_PIN = A6;      // Analog: ~0 V while heating up, ~2.5 V when ready
+static const uint8_t FOG_SENSE_PIN = A0;      // Analog: ~0 V while heating up, ~2.5 V when ready
 static const uint8_t FOG_CONNECTED_PIN = A7;  // Digital: HIGH when the fog machine is connected / switched on
 
 // I2C bus for the MCP23017 port expander (default Nano ESP32 pins: SDA = A4, SCL = A5)
@@ -59,7 +58,7 @@ static const uint32_t MCP_TASK_STACK = 3072;
 static const UBaseType_t MCP_TASK_PRIORITY = 2;
 
 // ---------------------------------------------------------------------------
-// Relays (K1..K8 on J8..J11, driven through BC337 transistors from MCP23017 port B)
+// Relays (K1&K2 on J21, K3&K4 on J20, K5&K6 on J19, K7&K8 on J15; driven from MCP23017 port B)
 // ---------------------------------------------------------------------------
 static const uint8_t RELAY_COUNT = 8;
 static const uint8_t RELAY_MCP_PORT = MCP_PORT_B;
@@ -76,7 +75,7 @@ static const uint8_t RELAY_STATE_ON = 1;
 static const uint8_t RELAY_STATE_BLINK = 2;
 
 // ---------------------------------------------------------------------------
-// Generic digital outputs (J6 / J7, MCP23017 port A, sinking: LOW = on)
+// Generic digital outputs (1-4 on J17, 5-8 on J18; MCP23017 port A, sinking: LOW = on)
 // ---------------------------------------------------------------------------
 static const uint8_t OUTPUT_COUNT = 8;
 static const uint8_t OUTPUT_MCP_PORT = MCP_PORT_A;
@@ -121,12 +120,12 @@ static const uint8_t FOG_STATE_FOGGING = 3;
 static const uint8_t FOG_CMD_STOP = 0;
 static const uint8_t FOG_CMD_START = 1;
 
-static const uint16_t FOG_READY_THRESHOLD_MV = 1000;      // A6 at/above this = heated up
+static const uint16_t FOG_READY_THRESHOLD_MV = 1000;      // A0 at/above this = heated up
 static const uint16_t FOG_HYSTERESIS_MV = 100;            // Ready at >= threshold + hysteresis, back to heating at < threshold - hysteresis
 static const uint8_t FOG_BURST_DEFAULT_SECONDS = 5;       // Time D9 stays active per burst
 static const uint8_t FOG_BURST_MIN_SECONDS = 1;
 static const uint8_t FOG_BURST_MAX_SECONDS = 60;
-static const uint32_t FOG_MEASURE_DELAY_MS = 200;         // D9 low -> wait this long -> measure A6
+static const uint32_t FOG_MEASURE_DELAY_MS = 200;         // D9 low -> wait this long -> measure A0
 static const uint32_t FOG_MAX_SESSION_MS = 120000;        // Safety cap on one continuous fogging session (0 = disabled)
 static const uint32_t FOG_POLL_INTERVAL_MS = 50;          // State evaluation interval
 static const uint8_t FOG_ADC_OVERSAMPLE = 8;
