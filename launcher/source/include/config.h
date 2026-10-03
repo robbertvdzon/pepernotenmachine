@@ -55,5 +55,5 @@ static const uint8_t DISPENSER_ACCEL_PHASE_PERCENT = 20; // % of duration for ac
 
 //Sequence settings
 static const uint32_t SEQUENCE_MOVE_UP_SLOW_DURATION_MS = 2000;
-static const uint32_t SEQUENCE_MOVE_UP_FAST_DURATION_MS = 40000;
+static const uint32_t SEQUENCE_MOVE_UP_FAST_DURATION_MS = 90000;
 static const uint8_t SEQUENCE_DISPENSE_DURATION_SECONDS = 8;
