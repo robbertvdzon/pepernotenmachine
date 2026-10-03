@@ -15,7 +15,7 @@ void pull_motor_init() {
     digitalWrite(PULL_MOTOR_PUL_PIN, LOW);
 
     // Initialize PWM with default frequency on dedicated channel (channel 7)
-    ledcSetup(PWM_CHANNEL, PULL_MOTOR_DEFAULT_FREQ, PWM_RESOLUTION);
+    ledcSetup(PWM_CHANNEL, PULL_MOTOR_MAX_FREQ_HZ, PWM_RESOLUTION);
     ledcAttachPin(PULL_MOTOR_PUL_PIN, PWM_CHANNEL);
     ledcWrite(PWM_CHANNEL, 0);  // start stopped
     enabled = false;
@@ -44,9 +44,9 @@ void pull_motor_set_speed(int32_t speed) {
     // Clamp magnitude
     if (speed > PULL_MOTOR_SPEED_MAX) speed = PULL_MOTOR_SPEED_MAX;
 
-    // speed = 1   -> frequency ≈ 31 Hz (slowest)
-    // speed = 512 -> frequency = 16000 Hz (fastest)
-    uint32_t newFreq = (speed * 16000UL) / PULL_MOTOR_SPEED_MAX;
+    // speed = 1   -> slowest
+    // speed = 512 -> fastest
+    uint32_t newFreq = speed * PULL_MOTOR_MAX_FREQ_HZ / PULL_MOTOR_SPEED_MAX;
 
     ledcWriteTone(PWM_CHANNEL, newFreq);
 }
