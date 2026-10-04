@@ -2,23 +2,30 @@
 #include "../include/config.h"
 #include <Arduino.h>
 #include <freertos/FreeRTOS.h>
-#include <freertos/queue.h>
+#include <freertos/task.h>
 
 #define BUTTON_PIN EXTRA_IO_1_PIN
 
 static button_notify_cb_t notify_cb = nullptr;
 static volatile int currentState = HIGH;
-static volatile TickType_t lastInterruptTick = 0;
-static const TickType_t debounceDelayTicks = pdMS_TO_TICKS(20);  // 20 ms
+static const TickType_t debounceDelayTicks = (pdMS_TO_TICKS(20) > 0) ? pdMS_TO_TICKS(20) : 1;
 
-static QueueHandle_t buttonQueue = NULL;
+static TaskHandle_t buttonTaskHandle = NULL;
 
-// Button event task: runs in task context and calls notify_cb
+// Wait for a quiet interval after the last edge, then report the stable state.
 static void button_task(void* pvParameters) {
     (void)pvParameters;
-    uint8_t payload;
+
     for (;;) {
-        if (xQueueReceive(buttonQueue, &payload, portMAX_DELAY) == pdTRUE) {
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+
+        while (ulTaskNotifyTake(pdTRUE, debounceDelayTicks) > 0) {
+        }
+
+        const int stableState = digitalRead(BUTTON_PIN);
+        if (stableState != currentState) {
+            currentState = stableState;
+            const uint8_t payload = (stableState == LOW) ? 1 : 0;  // 1=pressed, 0=released
             Serial.print("Button ");
             Serial.println(payload ? "pressed" : "released");
             if (notify_cb) notify_cb(payload);
@@ -26,38 +33,26 @@ static void button_task(void* pvParameters) {
     }
 }
 
-// ISR: fires on pin change, does minimal work and posts event to queue
+// ISR: wake the task so it can debounce the input outside interrupt context.
 static void IRAM_ATTR button_isr() {
-    TickType_t now = xTaskGetTickCountFromISR();
-    int newState = digitalRead(BUTTON_PIN);
-
-    // only handle a state change if it has been stable longer than debounce delay
-    if (newState != currentState && (now - lastInterruptTick) >= debounceDelayTicks) {
-        lastInterruptTick = now;
-        currentState = newState;
-
-        uint8_t payload = (currentState == LOW) ? 1 : 0; // 1=pressed, 0=released
-        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-        if (buttonQueue != NULL) {
-            xQueueSendFromISR(buttonQueue, &payload, &xHigherPriorityTaskWoken);
-            if (xHigherPriorityTaskWoken) portYIELD_FROM_ISR();
-        }
+    BaseType_t higherPriorityTaskWoken = pdFALSE;
+    if (buttonTaskHandle != NULL) {
+        vTaskNotifyGiveFromISR(buttonTaskHandle, &higherPriorityTaskWoken);
+        if (higherPriorityTaskWoken) portYIELD_FROM_ISR();
     }
-}    
+}
 
 
 void button_init(button_notify_cb_t cb) {
     notify_cb = cb;
     pinMode(BUTTON_PIN, INPUT_PULLUP);
     currentState = digitalRead(BUTTON_PIN);
-    lastInterruptTick = xTaskGetTickCount();
 
-    // Create queue and task for handling button events
-    if (buttonQueue == NULL) {
-        buttonQueue = xQueueCreate(8, sizeof(uint8_t));
-    }
-    if (buttonQueue != NULL) {
-        xTaskCreate(button_task, "button_task", 2048, NULL, 1, NULL);
+    if (buttonTaskHandle == NULL &&
+        xTaskCreate(button_task, "button_task", 2048, NULL, 1, &buttonTaskHandle) != pdPASS) {
+        buttonTaskHandle = NULL;
+        Serial.println("Failed to create button task");
+        return;
     }
 
     // Attach interrupt on CHANGE (rising or falling edge)

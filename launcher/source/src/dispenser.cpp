@@ -35,6 +35,9 @@ void dispenser_init(dispenser_notify_cb_t notifyCb) {
 
     uint8_t savedDuration;
     if (storage_get(STORAGE_KEY_DISPENSER_DURATION, &savedDuration, sizeof(savedDuration), NULL)) {
+        Serial.print("Read dispenser duration from storage (now set to ");
+        Serial.print(savedDuration);
+        Serial.println(" seconds)");
         dispenseDuration.store(clamp_duration(savedDuration));
     }
 
