@@ -118,7 +118,6 @@ static void sequence_task(void* arg) {
     for (;;) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);  // sleep until sequence_start()
         run_sequence();
-        ulTaskNotifyTake(pdTRUE, 0);              // drop start requests that arrived while running
     }
 }
 
