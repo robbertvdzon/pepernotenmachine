@@ -41,6 +41,7 @@ The LED driver in `src/led.c` keeps per-LED intensity state and supports the fol
 - `LED_OFF`: off
 - `LED_ON`: full brightness
 - `LED_FLASH`: 500 ms half-cycle blinking
+- `LED_FLASH_FAST`: 100 ms blinking period
 - `LED_PULSE`: sinusoidal pulse with a 2 s period
 - `LED_RAMP_UP`: ramps from the current intensity to full brightness over 500 ms, shortened proportionally when already partially lit
 - `LED_RAMP_DOWN`: ramps from the current intensity to zero over 500 ms, shortened proportionally when already partially lit

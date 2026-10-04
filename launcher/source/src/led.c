@@ -8,6 +8,7 @@
 
 #define LED_TIMER_PERIOD_MS 10
 #define LED_FLASH_PERIOD_MS 500
+#define LED_FLASH_FAST_PERIOD_MS 100
 #define LED_PULSE_PERIOD_MS 2000
 #define LED_RAMP_TIME_MS 500
 
@@ -39,6 +40,10 @@ static uint8_t led_duty_for_state(uint8_t led_index, led_state_t state) {
         case LED_FLASH:
             phase_ms = animation_time_ms % LED_FLASH_PERIOD_MS;
             intensity = phase_ms < LED_FLASH_PERIOD_MS / 2 ? 255 : 0;
+            break;
+        case LED_FLASH_FAST:
+            phase_ms = animation_time_ms % LED_FLASH_FAST_PERIOD_MS;
+            intensity = phase_ms < LED_FLASH_FAST_PERIOD_MS / 2 ? 255 : 0;
             break;
         case LED_PULSE:
             phase_ms = animation_time_ms % LED_PULSE_PERIOD_MS;

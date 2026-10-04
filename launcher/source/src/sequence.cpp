@@ -1,9 +1,10 @@
+#include <Arduino.h>
 #include "../include/pull_motor.h"
 #include "../include/config.h"
 #include "../include/led.h"
 #include "../include/release_servo.h"
 #include "../include/dispenser.h"
-#include <Arduino.h>
+#include <atomic>
 
 #define STATE_LED LED_1
 
@@ -12,84 +13,137 @@ enum SequenceState {
     MOVE_DOWN,
     MOVE_UP_SLOW,
     MOVE_UP_FAST,
+    ERROR
 };
 
-static SequenceState sequenceState = IDLE;
-static volatile int currentEndSwitchState = HIGH;
-static volatile TickType_t lastInterruptTick = 0;
-static const TickType_t debounceDelayTicks = pdMS_TO_TICKS(20);
-static TimerHandle_t moveUpSlowTimer;
-static TimerHandle_t moveUpFastTimer;
+// The whole sequence runs in its own task, polling the end switch instead of using an ISR. That keeps every
+// call into the stepper / LED / dispenser code in normal task context.
+static std::atomic<SequenceState> sequenceState(IDLE);
+static TaskHandle_t sequenceTask = NULL;
 
-static void vTimerCallback(TimerHandle_t xTimer) {
-    if (xTimer == moveUpSlowTimer) {
-        Serial.println("Timer expired, moving up fast");
-        pull_motor_set_speed(512);
-        sequenceState = MOVE_UP_FAST;
-        dispenser_set_duration(SEQUENCE_DISPENSE_DURATION_SECONDS);
-        dispenser_control(1);
-        if (moveUpFastTimer != NULL) {
-            xTimerReset(moveUpFastTimer, 0);
-        }
-    } else if (xTimer == moveUpFastTimer) {
-        Serial.println("Timer expired, disabling motor");
-        pull_motor_set_speed(0);
-        pull_motor_enable(false);
-        led_set_state(STATE_LED, LED_ON);
-        sequenceState = IDLE;
-    } else {
-        Serial.println("Error: Unknown timer handle in vTimerCallback");
-    }
+static const TickType_t pollTicks = (pdMS_TO_TICKS(2) > 0) ? pdMS_TO_TICKS(2) : 1;
+static const uint32_t switchDebounceMs = 10;  // switch must stay pressed this long to count
+static const uint32_t moveUpSlowSteps = SEQUENCE_MOVE_UP_SLOW_STEPS;
+static const uint32_t moveUpTotalSteps = SEQUENCE_MOVE_UP_SLOW_STEPS + SEQUENCE_MOVE_UP_FAST_STEPS;
+
+static bool switch_pressed() { return digitalRead(PULL_MOTOR_END_SWITCH_PIN) == LOW; }
+
+static void abort_sequence(const char* reason) {
+    Serial.printf("Sequence aborted: %s\n", reason);
+    pull_motor_stop();
+    led_set_state(STATE_LED, LED_FLASH_FAST);
+    sequenceState = ERROR;
 }
 
-static void IRAM_ATTR switch_isr() {
-    TickType_t now = xTaskGetTickCountFromISR();
-    int newState = digitalRead(PULL_MOTOR_END_SWITCH_PIN);
+static void run_sequence() {
+    // ---- MOVE_DOWN: full speed (after the ramp-up) until the end switch is pressed -------------------------
+    led_set_state(STATE_LED, LED_PULSE);
+    Serial.println("Sequence started: moving down");
+    pull_motor_set_speed(-SEQUENCE_MOVE_DOWN_SPEED);
 
-    // only handle a state change if it has been stable longer than debounce delay
-    if (newState != currentEndSwitchState && (now - lastInterruptTick) >= debounceDelayTicks) {
-        lastInterruptTick = now;
-        currentEndSwitchState = newState;
-        Serial.println("Received switch interrupt, state: " + String(currentEndSwitchState == LOW ? "LOW" : "HIGH"));
-        if (sequenceState == MOVE_DOWN && currentEndSwitchState == LOW) {
-            Serial.println("Reached bottom, moving up");
-            pull_motor_set_speed(128);
-            sequenceState = MOVE_UP_SLOW;
-            led_set_state(STATE_LED, LED_FLASH);
-            if (moveUpSlowTimer != NULL) {
-                xTimerReset(moveUpSlowTimer, 0);
+    const uint32_t downStart = millis();
+    bool pressed = false;
+    uint32_t pressedSince = 0;
+    for (;;) {
+        vTaskDelay(pollTicks);
+
+        if (switch_pressed()) {
+            if (!pressed) {
+                pressed = true;
+                pressedSince = millis();
             }
+            if (millis() - pressedSince >= switchDebounceMs) break;
+        } else {
+            pressed = false;
         }
+
+        if (millis() - downStart > SEQUENCE_MOVE_DOWN_TIMEOUT_MS) {
+            abort_sequence("end switch not reached in time");
+            return;
+        }
+    }
+
+    // ---- Bottom reached: stop at once; this spot is now step 0 -----------------------------------------------
+    Serial.println("Reached bottom, moving up");
+    pull_motor_hard_stop(0);
+    const uint32_t stopStart = millis();
+    while (pull_motor_is_running()) {
+        if (millis() - stopStart > 200) {
+            abort_sequence("motor did not stop at the bottom");
+            return;
+        }
+        vTaskDelay(pollTicks);
+    }
+
+    // ---- MOVE_UP_SLOW: one continuous move to the top; the first part is done at slow speed -------------------
+    sequenceState = MOVE_UP_SLOW;
+    led_set_state(STATE_LED, LED_FLASH);
+    if (!pull_motor_move_to(moveUpTotalSteps, SEQUENCE_MOVE_UP_SLOW_SPEED)) {
+        abort_sequence("could not start move up");
+        return;
+    }
+
+    const uint32_t upStart = millis();
+    while (pull_motor_position() < (int32_t)moveUpSlowSteps) {
+        if (millis() - upStart > 50 && !pull_motor_is_running()) {
+            abort_sequence("motor stopped during slow move up");
+            return;
+        }
+        vTaskDelay(pollTicks);
+    }
+
+    // ---- MOVE_UP_FAST: speed up for the rest of the distance, start the dispenser ----------------------------
+    Serial.println("Slow distance done, moving up fast");
+    sequenceState = MOVE_UP_FAST;
+    pull_motor_change_speed(SEQUENCE_MOVE_UP_FAST_SPEED);
+    dispenser_set_duration(SEQUENCE_DISPENSE_DURATION_SECONDS);
+    dispenser_control(1);
+
+    while (pull_motor_is_running()) {
+        vTaskDelay(pollTicks);
+    }
+
+    // The move ends with a ramp-down exactly on the target; the driver is disabled shortly after the last step
+    Serial.println("Reached top, sequence done");
+    led_set_state(STATE_LED, LED_ON);
+    sequenceState = IDLE;
+}
+
+static void sequence_task(void* arg) {
+    (void)arg;
+    for (;;) {
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);  // sleep until sequence_start()
+        run_sequence();
+        ulTaskNotifyTake(pdTRUE, 0);              // drop start requests that arrived while running
     }
 }
 
 void sequence_init() {
-    pull_motor_enable(false);
     led_set_state(STATE_LED, LED_OFF);
-
     pinMode(PULL_MOTOR_END_SWITCH_PIN, INPUT_PULLUP);
-    currentEndSwitchState = digitalRead(PULL_MOTOR_END_SWITCH_PIN);
-    lastInterruptTick = xTaskGetTickCount();
-    attachInterrupt(digitalPinToInterrupt(PULL_MOTOR_END_SWITCH_PIN), switch_isr, CHANGE);
-
-    moveUpSlowTimer = xTimerCreate("MoveUpSlowTimer", pdMS_TO_TICKS(SEQUENCE_MOVE_UP_SLOW_DURATION_MS), pdFALSE,
-                                   (void*)0, vTimerCallback);
-    moveUpFastTimer = xTimerCreate("MoveUpFastTimer", pdMS_TO_TICKS(SEQUENCE_MOVE_UP_FAST_DURATION_MS), pdFALSE,
-                                   (void*)0, vTimerCallback);
+    xTaskCreate(sequence_task, "sequence", 4096, NULL, 2, &sequenceTask);
 }
 
-void sequence_start() { 
+void sequence_start() {
+    // Only one run at a time: atomically claim the state. A new run may start from IDLE or from ERROR
+    // (that's how you recover from an error), otherwise ignore the request.
+    SequenceState previous = IDLE;
+    if (!sequenceState.compare_exchange_strong(previous, MOVE_DOWN)) {
+        previous = ERROR;
+        if (!sequenceState.compare_exchange_strong(previous, MOVE_DOWN)) {
+            Serial.println("Cannot start sequence: already running");
+            return;
+        }
+    }
+
     release_servo_set_angle(SERVO_CLOSE_ANGLE);
 
-    //Make sure the switch is not currently activated!!
-    if (currentEndSwitchState == LOW) {
+    // Make sure the switch is not currently activated!!
+    if (switch_pressed()) {
         Serial.println("Cannot start sequence: switch is currently activated");
+        sequenceState = previous;  // stay in IDLE or ERROR, whichever we came from
         return;
     }
 
-    sequenceState = MOVE_DOWN;
-    led_set_state(STATE_LED, LED_PULSE);
-    Serial.println("Sequence started: moving down");
-    pull_motor_enable(true);
-    pull_motor_set_speed(-512);
+    xTaskNotifyGive(sequenceTask);
 }

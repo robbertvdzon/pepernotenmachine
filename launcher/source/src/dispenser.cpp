@@ -1,12 +1,12 @@
 #include "../include/dispenser.h"
 #include "../include/config.h"
 #include "../include/led.h"
+#include "../include/stepper_engine.h"
 #include <Arduino.h>
 #include <FastAccelStepper.h>
 
 #define STATE_LED LED_2
 
-FastAccelStepperEngine engine = FastAccelStepperEngine();
 FastAccelStepper* stepper = NULL;
 
 static uint8_t dispenseDuration = DISPENSER_DEFAULT_DURATION;
@@ -24,9 +24,7 @@ static void vDispenseTimerCallback(TimerHandle_t xTimer) {
 
 void dispenser_init(dispenser_notify_cb_t notifyCb) {
     notify_cb = notifyCb;
-    engine.init();
-
-    stepper = engine.stepperConnectToPin(DISPENSER_STEP_PIN);
+    stepper = stepper_engine().stepperConnectToPin(DISPENSER_STEP_PIN);
 
     if (stepper) {
         stepper->setDirectionPin(DISPENSER_DIR_PIN);

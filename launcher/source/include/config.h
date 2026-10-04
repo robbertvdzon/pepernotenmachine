@@ -35,6 +35,8 @@ static const int PWM_DEFAULT_DUTY = 128; // 50%
 // Pull motor settings
 static const int PULL_MOTOR_SPEED_MAX = 512;
 static const int PULL_MOTOR_MAX_FREQ_HZ = 7200; // Hz - back to 7200 Hz for microstepping
+static const int32_t PULL_MOTOR_ACCELERATION = 20000; // steps/s^2. Ramp 0 -> max speed takes 7200/20000 = 0.36 s. Lower = gentler
+static const uint16_t PULL_MOTOR_DISABLE_DELAY_MS = 500; // driver stays enabled this long after the last step
 
 // Release servo settings
 static const uint8_t SERVO_MAX_ANGLE = 180;
@@ -54,6 +56,16 @@ static const uint16_t DISPENSER_ACCEL_INITIAL = 200; // initial/fallback acceler
 static const uint8_t DISPENSER_ACCEL_PHASE_PERCENT = 20; // % of duration for acceleration phase
 
 //Sequence settings
+static const int32_t SEQUENCE_MOVE_DOWN_SPEED = 512;
+static const int32_t SEQUENCE_MOVE_UP_SLOW_SPEED = 128;
+static const int32_t SEQUENCE_MOVE_UP_FAST_SPEED = 512;
+// Slow part of the way up: 2 s at slow speed = 3600 steps (was timer based)
 static const uint32_t SEQUENCE_MOVE_UP_SLOW_DURATION_MS = 2000;
-static const uint32_t SEQUENCE_MOVE_UP_FAST_DURATION_MS = (uint32_t)(((uint64_t)7200 * 24000) / PULL_MOTOR_MAX_FREQ_HZ);
+static const uint32_t SEQUENCE_MOVE_UP_SLOW_STEPS =
+    (uint32_t)((uint64_t)SEQUENCE_MOVE_UP_SLOW_SPEED * PULL_MOTOR_MAX_FREQ_HZ / PULL_MOTOR_SPEED_MAX *
+               SEQUENCE_MOVE_UP_SLOW_DURATION_MS / 1000);
+// Fast part of the way up: 24 s at 7200 Hz = 172800 steps (was timer based)
+static const uint32_t SEQUENCE_MOVE_UP_FAST_STEPS = 7200UL * 24UL;
+// Give up when the end switch isn't reached after this long (nominal full-speed down travel is ~25 s)
+static const uint32_t SEQUENCE_MOVE_DOWN_TIMEOUT_MS = 40000;
 static const uint8_t SEQUENCE_DISPENSE_DURATION_SECONDS = 8;
