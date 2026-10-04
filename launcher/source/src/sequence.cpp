@@ -4,22 +4,26 @@
 #include "../include/led.h"
 #include "../include/release_servo.h"
 #include "../include/dispenser.h"
+#include "../include/sequence.h"
 #include <atomic>
 
 #define STATE_LED LED_1
-
-enum SequenceState {
-    IDLE,
-    MOVE_DOWN,
-    MOVE_UP_SLOW,
-    MOVE_UP_FAST,
-    ERROR
-};
 
 // The whole sequence runs in its own task, polling the end switch instead of using an ISR. That keeps every
 // call into the stepper / LED / dispenser code in normal task context.
 static std::atomic<SequenceState> sequenceState(IDLE);
 static TaskHandle_t sequenceTask = NULL;
+
+static sequence_state_cb_t stateCb = NULL;
+
+static void publish_state(SequenceState s) {
+    if (stateCb) stateCb((uint8_t)s);
+}
+
+static void set_state(SequenceState s) {
+    sequenceState = s;
+    publish_state(s);
+}
 
 static const TickType_t pollTicks = (pdMS_TO_TICKS(2) > 0) ? pdMS_TO_TICKS(2) : 1;
 static const uint32_t switchDebounceMs = 10;  // switch must stay pressed this long to count
@@ -32,7 +36,7 @@ static void abort_sequence(const char* reason) {
     Serial.printf("Sequence aborted: %s\n", reason);
     pull_motor_stop();
     led_set_state(STATE_LED, LED_FLASH_FAST);
-    sequenceState = ERROR;
+    set_state(ERROR);
 }
 
 static void run_sequence() {
@@ -76,7 +80,7 @@ static void run_sequence() {
     }
 
     // ---- MOVE_UP_SLOW: one continuous move to the top; the first part is done at slow speed -------------------
-    sequenceState = MOVE_UP_SLOW;
+    set_state(MOVE_UP_SLOW);
     led_set_state(STATE_LED, LED_FLASH);
     if (!pull_motor_move_to(moveUpTotalSteps, SEQUENCE_MOVE_UP_SLOW_SPEED)) {
         abort_sequence("could not start move up");
@@ -94,7 +98,7 @@ static void run_sequence() {
 
     // ---- MOVE_UP_FAST: speed up for the rest of the distance, start the dispenser ----------------------------
     Serial.println("Slow distance done, moving up fast");
-    sequenceState = MOVE_UP_FAST;
+    set_state(MOVE_UP_FAST);
     pull_motor_change_speed(SEQUENCE_MOVE_UP_FAST_SPEED);
     dispenser_set_duration(SEQUENCE_DISPENSE_DURATION_SECONDS);
     dispenser_control(1);
@@ -106,7 +110,7 @@ static void run_sequence() {
     // The move ends with a ramp-down exactly on the target; the driver is disabled shortly after the last step
     Serial.println("Reached top, sequence done");
     led_set_state(STATE_LED, LED_ON);
-    sequenceState = IDLE;
+    set_state(IDLE);
 }
 
 static void sequence_task(void* arg) {
@@ -118,15 +122,14 @@ static void sequence_task(void* arg) {
     }
 }
 
-void sequence_init() {
+void sequence_init(sequence_state_cb_t cb) {
+    stateCb = cb;
     led_set_state(STATE_LED, LED_OFF);
     pinMode(PULL_MOTOR_END_SWITCH_PIN, INPUT_PULLUP);
     xTaskCreate(sequence_task, "sequence", 4096, NULL, 2, &sequenceTask);
 }
 
 void sequence_start() {
-    // Only one run at a time: atomically claim the state. A new run may start from IDLE or from ERROR
-    // (that's how you recover from an error), otherwise ignore the request.
     SequenceState previous = IDLE;
     if (!sequenceState.compare_exchange_strong(previous, MOVE_DOWN)) {
         previous = ERROR;
@@ -138,12 +141,12 @@ void sequence_start() {
 
     release_servo_set_angle(SERVO_CLOSE_ANGLE);
 
-    // Make sure the switch is not currently activated!!
     if (switch_pressed()) {
         Serial.println("Cannot start sequence: switch is currently activated");
-        sequenceState = previous;  // stay in IDLE or ERROR, whichever we came from
+        sequenceState = previous;  // not published: clients still have the old state
         return;
     }
 
+    publish_state(MOVE_DOWN);
     xTaskNotifyGive(sequenceTask);
 }

@@ -25,6 +25,7 @@ static const int RELEASE_SERVO_PIN = 33;  // Conected to servo for release mecha
 #define SEQUENCE_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26ae"
 #define DISPENSER_DURATION_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26af"
 #define DISPENSER_CONTROL_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26b0"
+#define SEQUENCE_STATE_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26b1"
 
 // PWM (LEDC) defaults
 // Motor uses channel 7 (group1 timer3) so ESP32Servo can safely allocate channel 0+.

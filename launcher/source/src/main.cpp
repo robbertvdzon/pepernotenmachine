@@ -55,6 +55,10 @@ static void sequence_write_cb() {
     sequence_start();
 }
 
+static void sequence_state_notify_cb(uint8_t state) { 
+    ble_notify_sequence_state(state); 
+}
+
 static void dispenser_duration_write_cb(uint8_t seconds) {
     dispenser_set_duration(seconds);
 }
@@ -85,7 +89,7 @@ void setup() {
      led_init();
      pull_motor_init();
      release_servo_init();
-     sequence_init();
+     sequence_init(sequence_state_notify_cb);
      button_init(button_notify_cb);
      dispenser_init(dispenser_notify_cb);
 

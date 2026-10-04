@@ -65,6 +65,9 @@ All multi-byte values use big-endian byte order.
 | Launch sequence | `...26ae` | Write | Any non-empty value starts the sequence |
 | Dispenser duration | `...26af` | Read, write | One byte, duration in seconds, clamped to `1..10` |
 | Dispenser control | `...26b0` | Read, write, notify | `0x01` start, `0x00` stop; notifications report state |
+| Sequence state | ...26b1 | Read, notify | One byte: 0 idle, 1 moving down, 2 moving up slow, 3 moving up fast, 4 error | 
+
+A client that connects mid-sequence gets the current state from a read, because the characteristic always holds the last published value. If a restart is refused because the switch is pressed, the state stays ERROR and no notification goes out, since nothing changed.
 
 The complete UUIDs are defined in `include/config.h`.
 

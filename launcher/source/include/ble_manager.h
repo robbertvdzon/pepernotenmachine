@@ -11,3 +11,4 @@ void ble_init(pull_motor_write_cb_t motorCb, release_servo_write_cb_t servoCb, s
 bool ble_is_connected();
 void ble_notify_button(uint8_t payload);
 void ble_notify_dispenser_start(uint8_t state);
+void ble_notify_sequence_state(uint8_t state);
