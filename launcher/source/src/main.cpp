@@ -1,9 +1,8 @@
-
 #include <Arduino.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/timers.h>
 
-//#define ENDURANCE_TEST  // TEMPORARY TEST CODE: run the sequence repeatedly without BLE or button input
+// #define ENDURANCE_TEST  // TEMPORARY TEST CODE: run the sequence repeatedly without BLE or button input
 
 #include "../include/config.h"
 #include "../include/release_servo.h"
@@ -13,16 +12,13 @@
 #include "../include/sequence.h"
 #include "../include/dispenser.h"
 #include "../include/led.h"
+#include "../include/storage.h"
 
 static TimerHandle_t releaseServoReturnTimer = NULL;
 
-static void release_servo_return_cb(TimerHandle_t xTimer) {
-    release_servo_set_angle(SERVO_CLOSE_ANGLE);
-}
+static void release_servo_return_cb(TimerHandle_t xTimer) { release_servo_set_angle(SERVO_CLOSE_ANGLE); }
 
-static void pull_motor_write_cb(int32_t speed) {
-    pull_motor_set_speed(speed);
-}
+static void pull_motor_write_cb(int32_t speed) { pull_motor_set_speed(speed); }
 
 static void release_servo_write_cb(uint8_t angle) {
     if (releaseServoReturnTimer != NULL) {
@@ -41,8 +37,8 @@ static void button_notify_cb(uint8_t payload) {
     release_servo_set_angle(SERVO_OPEN_ANGLE);
 
     if (releaseServoReturnTimer == NULL) {
-        releaseServoReturnTimer = xTimerCreate("releaseServoReturn", pdMS_TO_TICKS(4000), pdFALSE, NULL,
-                                              release_servo_return_cb);
+        releaseServoReturnTimer =
+            xTimerCreate("releaseServoReturn", pdMS_TO_TICKS(4000), pdFALSE, NULL, release_servo_return_cb);
     }
 
     if (releaseServoReturnTimer != NULL) {
@@ -53,9 +49,7 @@ static void button_notify_cb(uint8_t payload) {
     ble_notify_button(payload);
 }
 
-static void sequence_write_cb() {
-    sequence_start();
-}
+static void sequence_write_cb() { sequence_start(); }
 
 #ifdef ENDURANCE_TEST
 // ===== TEMPORARY TEST CODE: replaces the normal loop() =====
@@ -72,47 +66,47 @@ static const uint32_t TEST_SERVO_OPEN_MS = 3000;
 #endif
 
 static void sequence_state_notify_cb(uint8_t state) {
+#ifdef ENDURANCE_TEST
     testState = state;  // TEMP test
+#endif
     ble_notify_sequence_state(state);
 }
 
-static void dispenser_duration_write_cb(uint8_t seconds) {
-    dispenser_set_duration(seconds);
-}
+static void dispenser_duration_write_cb(uint8_t seconds) { dispenser_set_duration(seconds); }
 
-static void dispenser_start_write_cb(uint8_t command) {
-    dispenser_control(command);
-}
+static void dispenser_start_write_cb(uint8_t command) { dispenser_control(command); }
 
-static void dispenser_notify_cb(uint8_t state) {
-    ble_notify_dispenser_start(state);
-}
+static void dispenser_notify_cb(uint8_t state) { ble_notify_dispenser_start(state); }
 
 void setup() {
     Serial.begin(115200);
-     do  {
+    do {
         ;  // wait for serial port to connect. Needed for native USB
         delay(100);
-     } while (!Serial);
+    } while (!Serial);
 
-     Serial.println("Launcher starting up...");
-     Serial.printf("Chip: %s\n", ESP.getChipModel());
-     Serial.printf("Revision: %d\n", ESP.getChipRevision());
-     Serial.printf("Cores: %d\n", ESP.getChipCores());
-     Serial.printf("Free heap: %u\n", ESP.getFreeHeap());
-     Serial.printf("PSRAM: %s\n", psramFound() ? "YES" : "NO");
-     Serial.println("");
+    Serial.println("Launcher starting up...");
+    Serial.printf("Chip: %s\n", ESP.getChipModel());
+    Serial.printf("Revision: %d\n", ESP.getChipRevision());
+    Serial.printf("Cores: %d\n", ESP.getChipCores());
+    Serial.printf("Free heap: %u\n", ESP.getFreeHeap());
+    Serial.printf("PSRAM: %s\n", psramFound() ? "YES" : "NO");
+    Serial.println("");
 
-     led_init();
-     pull_motor_init();
-     release_servo_init();
-     sequence_init(sequence_state_notify_cb);
-     button_init(button_notify_cb);
-     dispenser_init(dispenser_notify_cb);
+     if (!storage_init()) {
+         Serial.println("Failed to initialize persistent storage");
+     }
 
-     // initialize BLE with callbacks (motor, horn, servo)
-     ble_init(pull_motor_write_cb, release_servo_write_cb, sequence_write_cb, dispenser_duration_write_cb,
-              dispenser_start_write_cb);
+    led_init();
+    pull_motor_init();
+    release_servo_init();
+    dispenser_init(dispenser_notify_cb);
+    sequence_init(sequence_state_notify_cb);
+    button_init(button_notify_cb);
+
+    // initialize BLE with callbacks (motor, horn, servo)
+    ble_init(pull_motor_write_cb, release_servo_write_cb, sequence_write_cb, dispenser_duration_write_cb,
+             dispenser_start_write_cb);
 }
 
 // ===== TEMPORARY TEST CODE: replaces the normal loop() =====

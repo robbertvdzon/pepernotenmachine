@@ -100,7 +100,6 @@ static void run_sequence() {
     Serial.println("Slow distance done, moving up fast");
     set_state(MOVE_UP_FAST);
     pull_motor_change_speed(SEQUENCE_MOVE_UP_FAST_SPEED);
-    dispenser_set_duration(SEQUENCE_DISPENSE_DURATION_SECONDS);
     dispenser_control(1);
 
     while (pull_motor_is_running()) {
@@ -118,6 +117,7 @@ static void sequence_task(void* arg) {
     for (;;) {
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);  // sleep until sequence_start()
         run_sequence();
+        ulTaskNotifyTake(pdTRUE, 0);              // drop start requests that arrived while running
     }
 }
 

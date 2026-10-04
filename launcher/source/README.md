@@ -63,7 +63,7 @@ All multi-byte values use big-endian byte order.
 | Button | `...26aa` | Read, notify | `0x01` pressed, `0x00` released |
 | Release servo | `...26ad` | Read, write | One byte, angle `0..180` degrees |
 | Launch sequence | `...26ae` | Write | Any non-empty value starts the sequence |
-| Dispenser duration | `...26af` | Read, write | One byte, duration in seconds, clamped to `1..10` |
+| Dispenser duration | `...26af` | Read, write | One byte, duration in seconds, clamped to `1..20`; saved across restarts |
 | Dispenser control | `...26b0` | Read, write, notify | `0x01` start, `0x00` stop; notifications report state |
 | Sequence state | ...26b1 | Read, notify | One byte: 0 idle, 1 moving down, 2 moving up slow, 3 moving up fast, 4 error | 
 

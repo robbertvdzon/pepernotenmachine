@@ -2,6 +2,7 @@
 #include <NimBLEDevice.h>
 #include "../include/ble_manager.h"
 #include "../include/config.h"
+#include "../include/dispenser.h"
 
 static NimBLEServer* pServer = nullptr;
 static NimBLEService* pService = nullptr;
@@ -109,7 +110,10 @@ class DispenserDurationCharCallbacks : public NimBLECharacteristicCallbacks {
         NimBLEAttValue v = c->getValue();
         if (v.size() < 1) return;
         uint8_t duration = v.data()[0];
-        if (dispenser_duration_cb) dispenser_duration_cb(duration);
+        if (dispenser_duration_cb) {
+            dispenser_duration_cb(duration);
+            duration = dispenser_get_duration();
+        }
         pDispenserDurationCharacteristic->setValue(&duration, 1);
     }
 };
@@ -168,7 +172,7 @@ void ble_init(pull_motor_write_cb_t motorCb, release_servo_write_cb_t releaseSer
     pDispenserDurationCharacteristic = pService->createCharacteristic(DISPENSER_DURATION_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::READ);
     pDispenserDurationCharacteristic->setCallbacks(new DispenserDurationCharCallbacks());
     add_ccc_descriptor(pDispenserDurationCharacteristic);
-    uint8_t initDuration = DISPENSER_DEFAULT_DURATION; // default duration
+    uint8_t initDuration = dispenser_get_duration();
     pDispenserDurationCharacteristic->setValue(&initDuration, 1);
 
     // Dispenser start characteristic: read/write/notify

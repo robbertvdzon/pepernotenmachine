@@ -48,8 +48,8 @@ static const uint8_t SERVO_CLOSE_ANGLE = 66;
 static const int DISPENSER_PWM_FREQ = 1000; // Hz - back to 1000 Hz for microstepping
 
 // Dispenser default settings
-static const uint8_t DISPENSER_DEFAULT_DURATION = 4; // seconds
-static const uint8_t DISPENSER_MAX_DURATION = 10; // seconds
+static const uint8_t DISPENSER_DEFAULT_DURATION = 6; // seconds
+static const uint8_t DISPENSER_MAX_DURATION = 20; // seconds
 
 // Dispenser motion control settings
 static const uint16_t DISPENSER_TOP_SPEED_HZ = 2000; // maximum speed in Hz
@@ -69,4 +69,3 @@ static const uint32_t SEQUENCE_MOVE_UP_SLOW_STEPS =
 static const uint32_t SEQUENCE_MOVE_UP_FAST_STEPS = 7200UL * 24UL;
 // Give up when the end switch isn't reached after this long (nominal full-speed down travel is ~25 s)
 static const uint32_t SEQUENCE_MOVE_DOWN_TIMEOUT_MS = 40000;
-static const uint8_t SEQUENCE_DISPENSE_DURATION_SECONDS = 8;
