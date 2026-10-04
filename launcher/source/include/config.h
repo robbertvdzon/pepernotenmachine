@@ -34,7 +34,7 @@ static const int PWM_DEFAULT_DUTY = 128; // 50%
 
 // Pull motor settings
 static const int PULL_MOTOR_SPEED_MAX = 512;
-static const int PULL_MOTOR_DEFAULT_FREQ = 1000; // Hz
+static const int PULL_MOTOR_MAX_FREQ_HZ = 7200; // Hz - back to 7200 Hz for microstepping
 
 // Release servo settings
 static const uint8_t SERVO_MAX_ANGLE = 180;
@@ -55,5 +55,5 @@ static const uint8_t DISPENSER_ACCEL_PHASE_PERCENT = 20; // % of duration for ac
 
 //Sequence settings
 static const uint32_t SEQUENCE_MOVE_UP_SLOW_DURATION_MS = 2000;
-static const uint32_t SEQUENCE_MOVE_UP_FAST_DURATION_MS = 90000;
+static const uint32_t SEQUENCE_MOVE_UP_FAST_DURATION_MS = (uint32_t)(((uint64_t)7200 * 24000) / PULL_MOTOR_MAX_FREQ_HZ);
 static const uint8_t SEQUENCE_DISPENSE_DURATION_SECONDS = 8;
