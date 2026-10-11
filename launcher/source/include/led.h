@@ -17,6 +17,7 @@ typedef enum {
     LED_OFF = 0,
     LED_ON,
     LED_FLASH,
+    LED_FLASH_FAST,
     LED_PULSE,
     LED_RAMP_UP,
     LED_RAMP_DOWN

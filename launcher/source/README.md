@@ -41,6 +41,7 @@ The LED driver in `src/led.c` keeps per-LED intensity state and supports the fol
 - `LED_OFF`: off
 - `LED_ON`: full brightness
 - `LED_FLASH`: 500 ms half-cycle blinking
+- `LED_FLASH_FAST`: 100 ms blinking period
 - `LED_PULSE`: sinusoidal pulse with a 2 s period
 - `LED_RAMP_UP`: ramps from the current intensity to full brightness over 500 ms, shortened proportionally when already partially lit
 - `LED_RAMP_DOWN`: ramps from the current intensity to zero over 500 ms, shortened proportionally when already partially lit
@@ -62,8 +63,11 @@ All multi-byte values use big-endian byte order.
 | Button | `...26aa` | Read, notify | `0x01` pressed, `0x00` released |
 | Release servo | `...26ad` | Read, write | One byte, angle `0..180` degrees |
 | Launch sequence | `...26ae` | Write | Any non-empty value starts the sequence |
-| Dispenser duration | `...26af` | Read, write | One byte, duration in seconds, clamped to `1..10` |
+| Dispenser duration | `...26af` | Read, write | One byte, duration in seconds, clamped to `1..20`; saved across restarts |
 | Dispenser control | `...26b0` | Read, write, notify | `0x01` start, `0x00` stop; notifications report state |
+| Sequence state | ...26b1 | Read, notify | One byte: 0 idle, 1 moving down, 2 moving up slow, 3 moving up fast, 4 error | 
+
+A client that connects mid-sequence gets the current state from a read, because the characteristic always holds the last published value. If a restart is refused because the switch is pressed, the state stays ERROR and no notification goes out, since nothing changed.
 
 The complete UUIDs are defined in `include/config.h`.
 

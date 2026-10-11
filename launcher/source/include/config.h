@@ -25,6 +25,7 @@ static const int RELEASE_SERVO_PIN = 33;  // Conected to servo for release mecha
 #define SEQUENCE_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26ae"
 #define DISPENSER_DURATION_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26af"
 #define DISPENSER_CONTROL_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26b0"
+#define SEQUENCE_STATE_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26b1"
 
 // PWM (LEDC) defaults
 // Motor uses channel 7 (group1 timer3) so ESP32Servo can safely allocate channel 0+.
@@ -34,7 +35,9 @@ static const int PWM_DEFAULT_DUTY = 128; // 50%
 
 // Pull motor settings
 static const int PULL_MOTOR_SPEED_MAX = 512;
-static const int PULL_MOTOR_DEFAULT_FREQ = 1000; // Hz
+static const int PULL_MOTOR_MAX_FREQ_HZ = 7200; // Hz - back to 7200 Hz for microstepping
+static const int32_t PULL_MOTOR_ACCELERATION = 20000; // steps/s^2. Ramp 0 -> max speed takes 7200/20000 = 0.36 s. Lower = gentler
+static const uint16_t PULL_MOTOR_DISABLE_DELAY_MS = 500; // driver stays enabled this long after the last step
 
 // Release servo settings
 static const uint8_t SERVO_MAX_ANGLE = 180;
@@ -45,8 +48,8 @@ static const uint8_t SERVO_CLOSE_ANGLE = 66;
 static const int DISPENSER_PWM_FREQ = 1000; // Hz - back to 1000 Hz for microstepping
 
 // Dispenser default settings
-static const uint8_t DISPENSER_DEFAULT_DURATION = 4; // seconds
-static const uint8_t DISPENSER_MAX_DURATION = 10; // seconds
+static const uint8_t DISPENSER_DEFAULT_DURATION = 6; // seconds
+static const uint8_t DISPENSER_MAX_DURATION = 20; // seconds
 
 // Dispenser motion control settings
 static const uint16_t DISPENSER_TOP_SPEED_HZ = 2000; // maximum speed in Hz
@@ -54,6 +57,15 @@ static const uint16_t DISPENSER_ACCEL_INITIAL = 200; // initial/fallback acceler
 static const uint8_t DISPENSER_ACCEL_PHASE_PERCENT = 20; // % of duration for acceleration phase
 
 //Sequence settings
+static const int32_t SEQUENCE_MOVE_DOWN_SPEED = 512;
+static const int32_t SEQUENCE_MOVE_UP_SLOW_SPEED = 128;
+static const int32_t SEQUENCE_MOVE_UP_FAST_SPEED = 512;
+// Slow part of the way up: 2 s at slow speed = 3600 steps (was timer based)
 static const uint32_t SEQUENCE_MOVE_UP_SLOW_DURATION_MS = 2000;
-static const uint32_t SEQUENCE_MOVE_UP_FAST_DURATION_MS = 40000;
-static const uint8_t SEQUENCE_DISPENSE_DURATION_SECONDS = 8;
+static const uint32_t SEQUENCE_MOVE_UP_SLOW_STEPS =
+    (uint32_t)((uint64_t)SEQUENCE_MOVE_UP_SLOW_SPEED * PULL_MOTOR_MAX_FREQ_HZ / PULL_MOTOR_SPEED_MAX *
+               SEQUENCE_MOVE_UP_SLOW_DURATION_MS / 1000);
+// Fast part of the way up: 24 s at 7200 Hz = 172800 steps (was timer based)
+static const uint32_t SEQUENCE_MOVE_UP_FAST_STEPS = 7200UL * 24UL;
+// Give up when the end switch isn't reached after this long (nominal full-speed down travel is ~25 s)
+static const uint32_t SEQUENCE_MOVE_DOWN_TIMEOUT_MS = 40000;

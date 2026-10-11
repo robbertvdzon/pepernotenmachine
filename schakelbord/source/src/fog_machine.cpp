@@ -6,13 +6,13 @@
 #include <freertos/task.h>
 
 // Fogging works in bursts: D9 active for the configured time, then D9 low for FOG_MEASURE_DELAY_MS
-// so A6 can be measured. If the machine is still hot, the next burst starts; otherwise the session ends.
+// so A0 can be measured. If the machine is still hot, the next burst starts; otherwise the session ends.
 // The published state stays FOGGING during the pause between bursts.
 
 enum class Phase : uint8_t {
     IDLE,          // Not fogging: state follows the measurements
     BURST,         // D9 active
-    MEASURE_WAIT,  // D9 low, waiting before measuring A6
+    MEASURE_WAIT,  // D9 low, waiting before measuring A0
     STOP_SETTLE    // Stopped by client/failsafe: D9 low, waiting before re-evaluating the state
 };
 

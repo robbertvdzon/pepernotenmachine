@@ -1,7 +1,8 @@
+#include <Arduino.h>
+#include <NimBLEDevice.h>
 #include "../include/ble_manager.h"
 #include "../include/config.h"
-#include <NimBLEDevice.h>
-#include <Arduino.h>
+#include "../include/dispenser.h"
 
 static NimBLEServer* pServer = nullptr;
 static NimBLEService* pService = nullptr;
@@ -11,6 +12,7 @@ static NimBLECharacteristic* pReleaseServoCharacteristic = nullptr;
 static NimBLECharacteristic* pSequenceCharacteristic = nullptr;
 static NimBLECharacteristic* pDispenserDurationCharacteristic = nullptr;
 static NimBLECharacteristic* pDispenserControlCharacteristic = nullptr;
+static NimBLECharacteristic* pSequenceStateCharacteristic = nullptr;
 
 static pull_motor_write_cb_t pull_motor_cb = nullptr;
 static release_servo_write_cb_t release_servo_cb = nullptr;
@@ -108,7 +110,10 @@ class DispenserDurationCharCallbacks : public NimBLECharacteristicCallbacks {
         NimBLEAttValue v = c->getValue();
         if (v.size() < 1) return;
         uint8_t duration = v.data()[0];
-        if (dispenser_duration_cb) dispenser_duration_cb(duration);
+        if (dispenser_duration_cb) {
+            dispenser_duration_cb(duration);
+            duration = dispenser_get_duration();
+        }
         pDispenserDurationCharacteristic->setValue(&duration, 1);
     }
 };
@@ -157,11 +162,17 @@ void ble_init(pull_motor_write_cb_t motorCb, release_servo_write_cb_t releaseSer
     pSequenceCharacteristic = pService->createCharacteristic(SEQUENCE_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE);
     pSequenceCharacteristic->setCallbacks(new SequenceCharCallbacks());
 
+    // Sequence state characteristic: read/notify
+    pSequenceStateCharacteristic = pService->createCharacteristic(SEQUENCE_STATE_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ);
+    add_ccc_descriptor(pSequenceStateCharacteristic);
+    uint8_t initState = 0;  // IDLE
+    pSequenceStateCharacteristic->setValue(&initState, 1);
+
     // Dispenser duration characteristic: read/write
     pDispenserDurationCharacteristic = pService->createCharacteristic(DISPENSER_DURATION_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::READ);
     pDispenserDurationCharacteristic->setCallbacks(new DispenserDurationCharCallbacks());
     add_ccc_descriptor(pDispenserDurationCharacteristic);
-    uint8_t initDuration = DISPENSER_DEFAULT_DURATION; // default duration
+    uint8_t initDuration = dispenser_get_duration();
     pDispenserDurationCharacteristic->setValue(&initDuration, 1);
 
     // Dispenser start characteristic: read/write/notify
@@ -196,4 +207,10 @@ void ble_notify_dispenser_start(uint8_t state) {
     Serial.println(state);
     pDispenserControlCharacteristic->setValue(&state, 1);
     pDispenserControlCharacteristic->notify();
+}
+
+void ble_notify_sequence_state(uint8_t state) {
+    if (pSequenceStateCharacteristic == nullptr) return;
+    pSequenceStateCharacteristic->setValue(&state, 1);
+    pSequenceStateCharacteristic->notify();
 }
