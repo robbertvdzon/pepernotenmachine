@@ -22,7 +22,6 @@ const int SERVO_MAX = 1000;
 
 // Normal servo channel after the startup test.
 const int SERVO_CHANNEL = 0;
-const int SERVO_CHANNEL_2 = 1;
 
 void setup() {
   pinMode(PIN_50, INPUT_PULLUP);
@@ -43,22 +42,51 @@ void setup() {
   // }
 
   // Finish startup test at 0%.
-  setAllServoPercent(CENTER);
+  setServoPercent(SERVO_CHANNEL, CENTER);
   delay(500);
 }
 
+// While D2 is LOW: go to CENTER, return after 500 ms, wait 3 s, repeat.
+const unsigned long CENTER_TIME_MS = 500;
+const unsigned long PAUSE_TIME_MS = 3000;
+
+bool pin50Active = false;
+bool atCenter = false;
+unsigned long phaseStart = 0;
+
 void loop() {
+  if (digitalRead(PIN_50) != LOW) {
+    pin50Active = false;
+  }
+
   if (digitalRead(PIN_50) == LOW) {
-    setServoPercent(SERVO_CHANNEL, MAX);
-    setServoPercent(SERVO_CHANNEL_2, MIN);
+    unsigned long now = millis();
+
+    if (!pin50Active) {
+      // D2 just went LOW: start with a move to CENTER.
+      pin50Active = true;
+      atCenter = true;
+      phaseStart = now;
+      setServoPercent(SERVO_CHANNEL, CENTER);
+    }
+    else if (atCenter && now - phaseStart >= CENTER_TIME_MS) {
+      // 500 ms at CENTER: go back.
+      atCenter = false;
+      phaseStart = now;
+      setServoPercent(SERVO_CHANNEL, MIN);
+    }
+    else if (!atCenter && now - phaseStart >= PAUSE_TIME_MS) {
+      // 3 s after going back: CENTER again.
+      atCenter = true;
+      phaseStart = now;
+      setServoPercent(SERVO_CHANNEL, CENTER);
+    }
   }
   else if (digitalRead(PIN_25) == LOW) {
-    setServoPercent(SERVO_CHANNEL, MIN);
-    setServoPercent(SERVO_CHANNEL_2, MAX);
+    setServoPercent(SERVO_CHANNEL, CENTER);
   }
   else {
-    setServoPercent(SERVO_CHANNEL, CENTER);
-    setServoPercent(SERVO_CHANNEL_2, CENTER);
+    setServoPercent(SERVO_CHANNEL, MIN);
   }
 
   delay(20);
