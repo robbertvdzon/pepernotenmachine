@@ -2,6 +2,8 @@ module pepernoten_inlaad() {
 difference() {
 union() {
 
+    translate([-43, -20, 0])
+        cube([3, 26+40, 60]);
 
 
     translate([-40, -20, 57])
@@ -10,10 +12,10 @@ union() {
         cube([62, 2, 57]);
     translate([-40, 44, 0])
         cube([62, 2, 57]);
-    translate([-40, -35, 0])
-        cube([62, 15, 3]);
-    translate([-40, 44, 0])
-        cube([62, 15, 3]);
+    translate([-43, -35, 0])
+        cube([65, 15, 3]);
+    translate([-43, 44, 0])
+        cube([65, 15, 3]);
 
 }
 
