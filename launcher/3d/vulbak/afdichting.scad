@@ -1,25 +1,33 @@
+
+use <afdichting-mal.scad>;
+
 difference() {
-union() {
-
-  cylinder(h=3, r=100/2, $fn=100, center=false);
-  translate([-50, -5, 0])
-        cube([4, 10, 26]);    
-  translate([-50, -8, 0])
-        cube([8, 16, 9]);
-
-}
-
-  translate([0, -100, -1])
-        cube([1000, 200, 6]);
-    translate([-100,0,14]){
-        rotate([0,90,0]){
-            cylinder(h=500, r=1.5, $fn=100, center=false);
+    union() {
+        // Hoofdplaat
+        translate([0, -104/2, 0]) {
+            cube([3, 104, 200]);
         }
-    }    
-    translate([-100,0,22]){
-        rotate([0,90,0]){
-            cylinder(h=500, r=1.5, $fn=100, center=false);
-        }
-    }    
 
+        // Aansluitpunt 1 - onderkant links
+        translate([-30, -104/2, 0]) {
+            cube([30, 7, 15]);
+        }
+
+        // Aansluitpunt 2 - onderkant rechts
+        translate([-30, 104/2-7, 0]) {
+            cube([30, 7, 15]);
+        }
+
+        // Aansluitpunt 3 - bovenkant
+        translate([-100, -8, 170]) {
+            cube([100, 16, 30]);
+        }
+    }
+
+    // Schuine uitsparing
+    rotate([0, 15, 0]) {
+        translate([0, 0, -1]) {
+            afdichting_mal();
+        }
+    }
 }

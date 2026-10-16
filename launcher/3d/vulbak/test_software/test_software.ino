@@ -3,9 +3,9 @@
 
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x40);
 
-const int MAX = 30;//37
-const int CENTER = 30;//30
-const int MIN = 26;
+const int MAX = 25;//37
+const int CENTER = 35;//30
+const int MIN = 10;
 
 
 // Inputs:
