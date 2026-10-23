@@ -44,17 +44,13 @@ static const uint8_t SERVO_MAX_ANGLE = 180;
 static const uint8_t SERVO_OPEN_ANGLE = 40;
 static const uint8_t SERVO_CLOSE_ANGLE = 66;
 
-// Dispenser PWM settings
-static const int DISPENSER_PWM_FREQ = 1000; // Hz - back to 1000 Hz for microstepping
-
 // Dispenser default settings
-static const uint8_t DISPENSER_DEFAULT_DURATION = 6; // seconds
-static const uint8_t DISPENSER_MAX_DURATION = 20; // seconds
+static const uint8_t DISPENSER_DEFAULT_DURATION = 10; // seconds
+static const uint8_t DISPENSER_MAX_DURATION = 60; // seconds
 
 // Dispenser motion control settings
-static const uint16_t DISPENSER_TOP_SPEED_HZ = 2000; // maximum speed in Hz
-static const uint16_t DISPENSER_ACCEL_INITIAL = 200; // initial/fallback acceleration in steps/s²
-static const uint8_t DISPENSER_ACCEL_PHASE_PERCENT = 20; // % of duration for acceleration phase
+static const uint16_t DISPENSER_TOP_SPEED_HZ = 2200; 
+static const uint16_t DISPENSER_RAMP_TIME_MS = 2000;  // tijd om op/af te remmen naar topsnelheid
 
 //Sequence settings
 static const int32_t SEQUENCE_MOVE_DOWN_SPEED = 512;
@@ -66,6 +62,7 @@ static const uint32_t SEQUENCE_MOVE_UP_SLOW_STEPS =
     (uint32_t)((uint64_t)SEQUENCE_MOVE_UP_SLOW_SPEED * PULL_MOTOR_MAX_FREQ_HZ / PULL_MOTOR_SPEED_MAX *
                SEQUENCE_MOVE_UP_SLOW_DURATION_MS / 1000);
 // Fast part of the way up: 24 s at 7200 Hz = 172800 steps (was timer based)
-static const uint32_t SEQUENCE_MOVE_UP_FAST_STEPS = 7200UL * 24UL;
+static const uint32_t SEQUENCE_MOVE_UP_FAST_DURATION_SEC = 23;
+static const uint32_t SEQUENCE_MOVE_UP_FAST_STEPS = 7200UL * SEQUENCE_MOVE_UP_FAST_DURATION_SEC;
 // Give up when the end switch isn't reached after this long (nominal full-speed down travel is ~25 s)
 static const uint32_t SEQUENCE_MOVE_DOWN_TIMEOUT_MS = 40000;
