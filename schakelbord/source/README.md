@@ -1,90 +1,120 @@
-# Switchboard
+# Switchboard firmware
 
-Firmware for the BLE general purpose IO board (KiCad project `schakelbord`), built for an **Arduino Nano ESP32** with PlatformIO and the Arduino framework. It switches 8 AC relays, 3 PWM MOSFET channels, 8 generic digital outputs and a fog machine, and reports 4 digital inputs and 4 analog inputs, all over BLE.
+This project implements the BLE-controlled IO board for the KiCad `schakelbord` design. The firmware runs on an Arduino Nano ESP32 and exposes relay, MOSFET, digital output, digital input, analog input, and fog-machine control over BLE.
 
-Nothing in the firmware blocks: input edges use interrupts, relay blinking uses FreeRTOS timers, and the fog machine, analog sampling, debouncing and the I2C bus each run in their own small FreeRTOS task.
+The current implementation is organized around a small FreeRTOS task per subsystem, with non-blocking BLE callbacks and interrupt-driven input handling. The authoritative configuration lives in [`include/config.h`](include/config.h), and the runtime behavior is implemented in the firmware sources under [`src/`](src/).
+
+## What the board exposes
+
+- 8 relay channels on the MCP23017 port expander
+- 3 PWM MOSFET channels
+- 8 digital outputs on MCP23017 port A
+- 4 digital inputs with interrupt-driven debouncing
+- 4 analog inputs sampled and reported in millivolts
+- 1 fog machine control interface with a ready/heating/fogging state machine
 
 ## Hardware mapping
 
-All pins and options are in [`include/config.h`](include/config.h).
+All pin assignments, thresholds, timings, UUIDs, and protocol values are in [`include/config.h`](include/config.h).
 
 | Function | Connector | Pins | Notes |
 | --- | --- | --- | --- |
-| Relays 1-2 | J21 | MCP23017 GPB0-GPB1 | Active HIGH (via BC337) |
-| Relays 3-4 | J20 | MCP23017 GPB2-GPB3 | Active HIGH (via BC337) |
-| Relays 5-6 | J19 | MCP23017 GPB4-GPB5 | Active HIGH (via BC337) |
-| Relays 7-8 | J15 | MCP23017 GPB6-GPB7 | Active HIGH (via BC337) |
-| Generic outputs 1-4 | J17 | MCP23017 GPA0-GPA3 | Active LOW (sinking) |
-| Generic outputs 5-8 | J18 | MCP23017 GPA4-GPA7 | Active LOW (sinking) |
-| MOSFETs 1-3 | J4 | D2, D3, D4 | PWM, 1 kHz |
-| Generic digital inputs 1-4 | J12 | D5-D8 | Active LOW, internal pull-up |
+| Relays 1-2 | J21 | MCP23017 GPB0-GPB1 | Active HIGH, driven through BC337 |
+| Relays 3-4 | J20 | MCP23017 GPB2-GPB3 | Active HIGH |
+| Relays 5-6 | J19 | MCP23017 GPB4-GPB5 | Active HIGH |
+| Relays 7-8 | J15 | MCP23017 GPB6-GPB7 | Active HIGH |
+| Digital outputs 1-4 | J17 | MCP23017 GPA0-GPA3 | Active LOW (sinking) |
+| Digital outputs 5-8 | J18 | MCP23017 GPA4-GPA7 | Active LOW (sinking) |
+| MOSFETs 1-3 | J4 | D2, D3, D4 | PWM at 1 kHz |
+| Digital inputs 1-4 | J12 | D5, D6, D7, D8 | Active LOW, internal pull-up enabled |
 | Analog inputs 1-4 | J16 | A1, A2, A3, A6 | Reported in millivolts |
-| Fog machine trigger | J1 | D9 | HIGH = fogging |
-| Fog machine heat sensor | J1 | A0 | ~0 V heating, ~2.5 V ready |
-| Fog machine connected | J1 | A7 | HIGH = connected |
-| MCP23017 I2C | | SDA = A4, SCL = A5 | Address 0x20 |
+| Fog trigger | J1 | D9 | HIGH turns on the fog machine trigger |
+| Fog heat sensor | J1 | A0 | Analog reading used for readiness detection |
+| Fog connected sense | J1 | A7 | HIGH when machine is connected |
+| MCP23017 bus | - | SDA = A4, SCL = A5 | I2C address 0x20 |
 
 ## BLE service
 
-Device name: `IO Switchboard` (see `BLE_DEVICE_NAME`). Up to 3 simultaneous connections. All multi-byte values are big-endian.
+The firmware creates a single BLE service with device name `IO Switchboard` and supports up to 3 simultaneous connections.
 
-Service UUID: `3dc93769-33d3-4883-ae7b-877c14fd3eca`
+Service UUID:
+
+- `3dc93769-33d3-4883-ae7b-877c14fd3eca`
+
+### Characteristics
 
 | Characteristic | UUID | Properties | Payload |
 | --- | --- | --- | --- |
-| Relays | `3dc93701-...` | Read, write, notify | Write: `[relay 1-8, state]` or `[relay, state, intervalHi, intervalLo]`. State: `0` off, `1` on, `2` blink. Interval in ms (default 500, limits in config). Read/notify: 8 bytes, one state per relay |
-| MOSFETs | `3dc93702-...` | Read, write, notify | Write: `[mosfet 1-3, percent 0-100]`. Read/notify: 3 bytes, percent per MOSFET |
-| Fog state | `3dc93703-...` | Read, notify | `0` not connected, `1` heating up, `2` ready, `3` fogging |
-| Fog control | `3dc93704-...` | Read, write, notify | Write `1` start (only accepted when state is ready), `0` stop. Read/notify: `1` fogging session active, `0` not |
-| Fog burst duration | `3dc93705-...` | Read, write | Seconds, default 5 (limits in config) |
-| Digital inputs | `3dc93706-...` | Read, notify | 1 byte bitmask, bit 0 = input 1, `1` = active (pin LOW) |
-| Analog inputs | `3dc93707-...` | Read, notify | 4 x uint16 millivolts (8 bytes), notified on change of at least 50 mV |
-| Digital outputs | `3dc93708-...` | Read, write, notify | Write: `[output 1-8, 0/1]`. Read/notify: 1 byte bitmask, bit 0 = output 1 |
+| Relays | `3dc93701-33d3-4883-ae7b-877c14fd3eca` | Read, write, notify | Write: `[relay, state]` or `[relay, state, intervalHi, intervalLo]`. State values: `0` off, `1` on, `2` blink. Interval is in ms and is clamped to the configured minimum/maximum values. Notify/read returns 8 bytes with one relay state per relay. |
+| MOSFETs | `3dc93702-33d3-4883-ae7b-877c14fd3eca` | Read, write, notify | Write: `[mosfet, percent]` where percent is `0..100`. Notify/read returns 3 bytes, one byte per MOSFET percentage. |
+| Fog state | `3dc93703-33d3-4883-ae7b-877c14fd3eca` | Read, notify | `0` not connected, `1` heating up, `2` ready, `3` fogging. |
+| Fog control | `3dc93704-33d3-4883-ae7b-877c14fd3eca` | Read, write, notify | Write `1` to start, `0` to stop. Start is accepted only when the machine is ready. Read/notify reports `1` if a fogging session is currently active, otherwise `0`. |
+| Fog duration | `3dc93705-33d3-4883-ae7b-877c14fd3eca` | Read, write | Single-byte burst length in seconds. Default value is 5 seconds. |
+| Digital inputs | `3dc93706-33d3-4883-ae7b-877c14fd3eca` | Read, notify | 1-byte bitmask; bit 0 = input 1 and `1` means the input is active (pin is LOW). |
+| Analog inputs | `3dc93707-33d3-4883-ae7b-877c14fd3eca` | Read, notify | 4 x `uint16` millivolts, encoded big-endian, 8 bytes total. Notifications are sent when any channel moves by at least 50 mV and no more often than every 200 ms. |
+| Digital outputs | `3dc93708-33d3-4883-ae7b-877c14fd3eca` | Read, write, notify | Write: `[output, 0/1]` where output is `1..8`. Read/notify returns a bitmask byte; bit 0 = output 1. |
 
-The full UUIDs are in `include/config.h` (only the first byte group differs).
+The long-form UUIDs are defined in [`include/config.h`](include/config.h). The characteristic UUIDs differ only in the first 4 bytes, matching the service UUID block shown above.
 
-### Examples (raw hex writes)
+### Raw write examples
 
-- Relay 3 on: `03 01`
-- Relay 3 off: `03 00`
-- Relay 3 blink, default 500 ms: `03 02`
+- Relay 3 ON: `03 01`
+- Relay 3 OFF: `03 00`
+- Relay 3 blink at the default 500 ms interval: `03 02`
 - Relay 3 blink every 250 ms: `03 02 00 FA`
 - MOSFET 2 at 75%: `02 4B`
-- Output 5 on: `05 01`
-- Set fog burst to 8 seconds: `08` (duration characteristic)
-- Start fogging: `01`, stop fogging: `00` (control characteristic)
+- Output 5 ON: `05 01`
+- Set fog burst duration to 8 seconds: `08` on the fog-duration characteristic
+- Start fogging: `01` on the fog-control characteristic
+- Stop fogging: `00` on the fog-control characteristic
 
 ## Fog machine behavior
 
-State is derived from A7 (connected) and A0 (heat sensor, with 100 mV hysteresis around 1 V: ready at 1.1 V or more, back to heating below 0.9 V).
+The fog machine logic is implemented in [`src/fog_machine.cpp`](src/fog_machine.cpp) and uses the current threshold values from [`include/config.h`](include/config.h):
 
-1. Start is only accepted in state *ready*. D9 goes HIGH and the state becomes *fogging*.
-2. After the burst duration, D9 goes LOW (the state stays *fogging*). After 200 ms A0 is measured.
-3. If the machine is still hot enough, the next burst starts. Otherwise the session ends and the state is re-evaluated (normally *heating up*).
-4. A stop command sets D9 LOW immediately and, after 200 ms, the state is re-evaluated.
-5. If A7 goes LOW while fogging, fogging stops and the state becomes *not connected*.
-6. A session is stopped after `FOG_MAX_SESSION_MS` (default 120 s, `0` disables this safety cap).
+- `FOG_READY_THRESHOLD_MV = 1000`
+- `FOG_HYSTERESIS_MV = 100`
+- `FOG_BURST_DEFAULT_SECONDS = 5`
+- `FOG_MAX_SESSION_MS = 120000` (0 disables the safety cap)
 
-Every state change is notified. A rejected start request is answered with a notification on the control characteristic (value `0`).
+The effective logic is:
 
-## Failsafe
+1. The machine is considered connected only when `A7` reads HIGH.
+2. The machine is considered ready when the heat sensor at `A0` reads at or above 1000 mV, with 100 mV hysteresis. In practice the code keeps the state READY until the reading drops below 900 mV, and it becomes READY again only once it rises back to 1100 mV.
+3. A `start` command is accepted only while the machine is in the READY state and is connected.
+4. When a burst starts, `D9` goes HIGH and the firmware publishes `FOG_STATE_FOGGING`.
+5. After the configured burst duration elapses, the trigger is turned off and a 200 ms settle window is enforced before measuring A0 again.
+6. If the sensor is still hot enough, the next burst starts automatically. Otherwise the fogging session ends and the state is re-evaluated as HEATING or READY.
+7. A stop command turns the trigger off immediately and then re-evaluates the state after the 200 ms settle delay.
+8. If the machine becomes disconnected while fogging, the trigger is disabled and the state transitions to NOT_CONNECTED.
+9. Every state transition is notified over BLE. A rejected start request is signaled by a notification on the fog-control characteristic with value `0`.
 
-When the last connected client disconnects, all relays, MOSFETs and outputs are switched off and fogging is stopped.
+## Safety and fail-safe behavior
+
+The firmware includes a connection-level fail-safe:
+
+- When the last BLE client disconnects, all relays, MOSFETs and digital outputs are switched off.
+- Fogging is stopped immediately.
+- The board returns to a safe idle state with no retained client control.
 
 ## Software structure
 
-- `src/main.cpp` initializes all modules and wires the BLE callbacks to them.
-- `src/ble_manager.cpp` creates the service, characteristics, advertising and connection handling.
-- `src/mcp23017.cpp` owns the I2C bus in one task; other modules only set shadow bits.
-- `src/relays.cpp` relay states and blink timers.
-- `src/mosfets.cpp` LEDC PWM per MOSFET.
-- `src/digital_outputs.cpp` generic outputs on J17/J18.
-- `src/digital_inputs.cpp` interrupt driven, debounced inputs.
-- `src/analog_inputs.cpp` periodic sampling with change notifications.
-- `src/fog_machine.cpp` fog machine state machine.
-- `include/config.h` all pins, UUIDs, protocol values, timings and thresholds.
+The project layout matches the current implementation:
 
-## Build, upload and monitor
+- [`src/main.cpp`](src/main.cpp): startup, module initialization, BLE callback wiring, and the global failsafe.
+- [`src/ble_manager.cpp`](src/ble_manager.cpp): BLE server, advertising, characteristics, and connection handling.
+- [`src/mcp23017.cpp`](src/mcp23017.cpp): MCP23017 I2C task and shared port-expander access.
+- [`src/relays.cpp`](src/relays.cpp): relay state machine and blink-timer logic.
+- [`src/mosfets.cpp`](src/mosfets.cpp): LEDC PWM generation for the 3 MOSFETs.
+- [`src/digital_outputs.cpp`](src/digital_outputs.cpp): generic digital output behavior.
+- [`src/digital_inputs.cpp`](src/digital_inputs.cpp): interrupt-driven input edge detection and debouncing.
+- [`src/analog_inputs.cpp`](src/analog_inputs.cpp): periodic ADC sampling and change-based BLE notifications.
+- [`src/fog_machine.cpp`](src/fog_machine.cpp): fogging state machine and burst timing.
+- [`include/config.h`](include/config.h): all pin assignments, UUIDs, protocol values, timings, and thresholds.
+
+## Building, uploading, and monitoring
+
+Use PlatformIO from the project root:
 
 ```bash
 pio run
@@ -92,4 +122,12 @@ pio run -t upload
 pio device monitor
 ```
 
-The Nano ESP32 uses a DFU bootloader: if the upload does not start, double-tap the reset button and upload again.
+The Nano ESP32 uses a DFU bootloader. If upload does not start, double-tap the reset button and retry the upload.
+
+## Notes
+
+The firmware is designed to avoid blocking behavior in normal operation:
+
+- input edges are handled by interrupts
+- relay blink timing is handled by FreeRTOS timers
+- fogging, analog sampling, debouncing, and the MCP23017 I2C task each run in their own task or timer context
