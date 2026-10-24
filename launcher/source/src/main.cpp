@@ -17,7 +17,7 @@
 static void pull_motor_write_cb(int32_t speed) { pull_motor_set_speed(speed); }
 
 static void release_servo_write_cb(uint8_t angle) {
-    sequence_abort_launch();  // if the sequence is running, stop it and return to IDL
+    sequence_abort_launch(); //Stop possible automatic movement done by the sequence code.
     release_servo_set_angle(angle);
 }
 
@@ -33,6 +33,7 @@ static void button_notify_cb(uint8_t payload) {
 }
 
 static void sequence_write_cb() { sequence_start(); }
+static void sequence_launch_ble_cb() { sequence_launch(); }
 
 #ifdef ENDURANCE_TEST
 // ===== TEMPORARY TEST CODE: replaces the normal loop() =====
@@ -88,7 +89,7 @@ void setup() {
     button_init(button_notify_cb);
 
     // initialize BLE with callbacks (motor, horn, servo)
-    ble_init(pull_motor_write_cb, release_servo_write_cb, sequence_write_cb, dispenser_duration_write_cb,
+    ble_init(pull_motor_write_cb, release_servo_write_cb, sequence_write_cb, sequence_launch_ble_cb, dispenser_duration_write_cb,
              dispenser_start_write_cb);
 }
 

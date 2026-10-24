@@ -10,6 +10,7 @@ static NimBLECharacteristic* pPullMotorCharacteristic = nullptr;
 static NimBLECharacteristic* pButtonCharacteristic = nullptr;
 static NimBLECharacteristic* pReleaseServoCharacteristic = nullptr;
 static NimBLECharacteristic* pSequenceCharacteristic = nullptr;
+static NimBLECharacteristic* pSequenceLaunchCharacteristic = nullptr;
 static NimBLECharacteristic* pDispenserDurationCharacteristic = nullptr;
 static NimBLECharacteristic* pDispenserControlCharacteristic = nullptr;
 static NimBLECharacteristic* pSequenceStateCharacteristic = nullptr;
@@ -17,6 +18,7 @@ static NimBLECharacteristic* pSequenceStateCharacteristic = nullptr;
 static pull_motor_write_cb_t pull_motor_cb = nullptr;
 static release_servo_write_cb_t release_servo_cb = nullptr;
 static sequence_write_cb_t sequence_cb = nullptr;
+static sequence_launch_write_cb_t sequence_launch_cb = nullptr;
 static dispenser_duration_write_cb_t dispenser_duration_cb = nullptr;
 static dispenser_start_write_cb_t dispenser_start_cb = nullptr;
 static int connectedCount = 0;
@@ -105,6 +107,12 @@ class SequenceCharCallbacks : public NimBLECharacteristicCallbacks {
     }
 };
 
+class SequenceLaunchCharCallbacks : public NimBLECharacteristicCallbacks {
+    void onWrite(NimBLECharacteristic* c) override {
+        if (sequence_launch_cb) sequence_launch_cb();
+    }
+};
+
 class DispenserDurationCharCallbacks : public NimBLECharacteristicCallbacks {
     void onWrite(NimBLECharacteristic* c) override {
         NimBLEAttValue v = c->getValue();
@@ -129,10 +137,11 @@ class DispenserControlCharCallbacks : public NimBLECharacteristicCallbacks {
     }
 };
 
-void ble_init(pull_motor_write_cb_t motorCb, release_servo_write_cb_t releaseServoCb, sequence_write_cb_t sequenceCb, dispenser_duration_write_cb_t dispenserDurationCb, dispenser_start_write_cb_t dispenserStartCb) {
+void ble_init(pull_motor_write_cb_t motorCb, release_servo_write_cb_t releaseServoCb, sequence_write_cb_t sequenceCb, sequence_launch_write_cb_t sequenceLaunchCb, dispenser_duration_write_cb_t dispenserDurationCb, dispenser_start_write_cb_t dispenserStartCb) {
     pull_motor_cb = motorCb;
     release_servo_cb = releaseServoCb;
     sequence_cb = sequenceCb;
+    sequence_launch_cb = sequenceLaunchCb;
     dispenser_duration_cb = dispenserDurationCb;
     dispenser_start_cb = dispenserStartCb;
 
@@ -161,6 +170,10 @@ void ble_init(pull_motor_write_cb_t motorCb, release_servo_write_cb_t releaseSer
     // Sequence characteristic: write
     pSequenceCharacteristic = pService->createCharacteristic(SEQUENCE_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE);
     pSequenceCharacteristic->setCallbacks(new SequenceCharCallbacks());
+
+    // Sequence launch characteristic: write
+    pSequenceLaunchCharacteristic = pService->createCharacteristic(SEQUENCE_LAUNCH_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE);
+    pSequenceLaunchCharacteristic->setCallbacks(new SequenceLaunchCharCallbacks());
 
     // Sequence state characteristic: read/notify
     pSequenceStateCharacteristic = pService->createCharacteristic(SEQUENCE_STATE_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ);
