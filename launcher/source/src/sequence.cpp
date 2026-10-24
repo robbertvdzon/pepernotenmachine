@@ -16,6 +16,10 @@ static TaskHandle_t sequenceTask = NULL;
 
 static sequence_state_cb_t stateCb = NULL;
 
+static TimerHandle_t releaseServoReturnTimer = NULL;
+
+static void release_servo_return_cb(TimerHandle_t xTimer) { release_servo_set_angle(SERVO_CLOSE_ANGLE); }
+
 static void publish_state(SequenceState s) {
     if (stateCb) stateCb((uint8_t)s);
 }
@@ -148,4 +152,24 @@ void sequence_start() {
 
     publish_state(MOVE_DOWN);
     xTaskNotifyGive(sequenceTask);
+}
+
+void sequence_launch() {
+    release_servo_set_angle(SERVO_OPEN_ANGLE);
+
+    if (releaseServoReturnTimer == NULL) {
+        releaseServoReturnTimer =
+            xTimerCreate("releaseServoReturn", pdMS_TO_TICKS(4000), pdFALSE, NULL, release_servo_return_cb);
+    }
+
+    if (releaseServoReturnTimer != NULL) {
+        xTimerStop(releaseServoReturnTimer, 0);
+        xTimerStart(releaseServoReturnTimer, 0);
+    }
+}
+
+void sequence_abort_launch() {
+    if (releaseServoReturnTimer != NULL) {
+        xTimerStop(releaseServoReturnTimer, 0);
+    }
 }

@@ -14,39 +14,22 @@
 #include "../include/led.h"
 #include "../include/storage.h"
 
-static TimerHandle_t releaseServoReturnTimer = NULL;
-
-static void release_servo_return_cb(TimerHandle_t xTimer) { release_servo_set_angle(SERVO_CLOSE_ANGLE); }
-
 static void pull_motor_write_cb(int32_t speed) { pull_motor_set_speed(speed); }
 
 static void release_servo_write_cb(uint8_t angle) {
-    if (releaseServoReturnTimer != NULL) {
-        xTimerStop(releaseServoReturnTimer, 0);
-    }
+    sequence_abort_launch();  // if the sequence is running, stop it and return to IDL
     release_servo_set_angle(angle);
 }
 
 static void button_notify_cb(uint8_t payload) {
+    ble_notify_button(payload);
+
     if (payload == 0) {
         release_servo_set_angle(SERVO_CLOSE_ANGLE);
         sequence_start();
-        return;
+    } else {
+        sequence_launch();
     }
-
-    release_servo_set_angle(SERVO_OPEN_ANGLE);
-
-    if (releaseServoReturnTimer == NULL) {
-        releaseServoReturnTimer =
-            xTimerCreate("releaseServoReturn", pdMS_TO_TICKS(4000), pdFALSE, NULL, release_servo_return_cb);
-    }
-
-    if (releaseServoReturnTimer != NULL) {
-        xTimerStop(releaseServoReturnTimer, 0);
-        xTimerStart(releaseServoReturnTimer, 0);
-    }
-
-    ble_notify_button(payload);
 }
 
 static void sequence_write_cb() { sequence_start(); }
