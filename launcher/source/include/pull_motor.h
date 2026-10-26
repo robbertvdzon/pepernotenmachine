@@ -5,8 +5,9 @@
 //
 // "speed" values are the same signed units as before: -512..512, where 512 = PULL_MOTOR_MAX_FREQ_HZ.
 // Positive = up (counting up), negative = down. Positions are in steps.
+typedef void (*pull_motor_speed_changed_cb_t)(int32_t speed);
 
-void pull_motor_init();
+void pull_motor_init(pull_motor_speed_changed_cb_t speedChangedCb);
 
 // Run continuously at the given speed (ramped). 0 = ramped stop.
 void pull_motor_set_speed(int32_t speed);

@@ -8,8 +8,10 @@
 
 static Servo servo;
 static uint8_t currentAngle = SERVO_CLOSE_ANGLE;
+static release_servo_angle_changed_cb_t angleChangedCb = nullptr;
 
-void release_servo_init() {
+void release_servo_init(release_servo_angle_changed_cb_t cb) {
+    angleChangedCb = cb;
     servo.attach(RELEASE_SERVO_PIN);
     servo.write(currentAngle);
     led_set_state(STATE_LED, LED_OFF);
@@ -26,6 +28,7 @@ void release_servo_set_angle(uint8_t angle) {
     Serial.print("Servo angle set to ");
     Serial.print(angle);
     Serial.println(" degrees");
+    if (angleChangedCb) angleChangedCb(angle);
 }
 
 uint8_t release_servo_get_angle() { return currentAngle; }

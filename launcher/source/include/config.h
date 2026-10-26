@@ -22,11 +22,11 @@ static const int RELEASE_SERVO_PIN = 33;  // Conected to servo for release mecha
 #define PULL_MOTOR_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 #define BUTTON_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26aa"
 #define RELEASE_SERVO_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26ad"
-#define SEQUENCE_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26ae"
+#define PREPARE_LAUNCH_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26ae"
 #define DISPENSER_DURATION_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26af"
 #define DISPENSER_CONTROL_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26b0"
-#define SEQUENCE_STATE_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26b1"
-#define SEQUENCE_LAUNCH_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26b2"
+#define PREPARATION_STATE_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26b1"
+#define LAUNCH_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26b2"
 
 // PWM (LEDC) defaults
 // Motor uses channel 7 (group1 timer3) so ESP32Servo can safely allocate channel 0+.
@@ -53,17 +53,17 @@ static const uint8_t DISPENSER_MAX_DURATION = 60; // seconds
 static const uint16_t DISPENSER_TOP_SPEED_HZ = 2200; 
 static const uint16_t DISPENSER_RAMP_TIME_MS = 2000;  // tijd om op/af te remmen naar topsnelheid
 
-//Sequence settings
-static const int32_t SEQUENCE_MOVE_DOWN_SPEED = 512;
-static const int32_t SEQUENCE_MOVE_UP_SLOW_SPEED = 128;
-static const int32_t SEQUENCE_MOVE_UP_FAST_SPEED = 512;
+// Launcher preparation settings
+static const int32_t PREPARATION_MOVE_DOWN_SPEED = 512;
+static const int32_t PREPARATION_MOVE_UP_SLOW_SPEED = 128;
+static const int32_t PREPARATION_MOVE_UP_FAST_SPEED = 512;
 // Slow part of the way up: 2 s at slow speed = 3600 steps (was timer based)
-static const uint32_t SEQUENCE_MOVE_UP_SLOW_DURATION_MS = 2000;
-static const uint32_t SEQUENCE_MOVE_UP_SLOW_STEPS =
-    (uint32_t)((uint64_t)SEQUENCE_MOVE_UP_SLOW_SPEED * PULL_MOTOR_MAX_FREQ_HZ / PULL_MOTOR_SPEED_MAX *
-               SEQUENCE_MOVE_UP_SLOW_DURATION_MS / 1000);
+static const uint32_t PREPARATION_MOVE_UP_SLOW_DURATION_MS = 2000;
+static const uint32_t PREPARATION_MOVE_UP_SLOW_STEPS =
+    (uint32_t)((uint64_t)PREPARATION_MOVE_UP_SLOW_SPEED * PULL_MOTOR_MAX_FREQ_HZ / PULL_MOTOR_SPEED_MAX *
+               PREPARATION_MOVE_UP_SLOW_DURATION_MS / 1000);
 // Fast part of the way up: 24 s at 7200 Hz = 172800 steps (was timer based)
-static const uint32_t SEQUENCE_MOVE_UP_FAST_DURATION_SEC = 23;
-static const uint32_t SEQUENCE_MOVE_UP_FAST_STEPS = 7200UL * SEQUENCE_MOVE_UP_FAST_DURATION_SEC;
+static const uint32_t PREPARATION_MOVE_UP_FAST_DURATION_SEC = 23;
+static const uint32_t PREPARATION_MOVE_UP_FAST_STEPS = 7200UL * PREPARATION_MOVE_UP_FAST_DURATION_SEC;
 // Give up when the end switch isn't reached after this long (nominal full-speed down travel is ~25 s)
-static const uint32_t SEQUENCE_MOVE_DOWN_TIMEOUT_MS = 40000;
+static const uint32_t PREPARATION_MOVE_DOWN_TIMEOUT_MS = 40000;

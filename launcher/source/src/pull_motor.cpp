@@ -4,16 +4,24 @@
 #include <Arduino.h>
 
 static FastAccelStepper* motor = NULL;
+static pull_motor_speed_changed_cb_t speedChangedCb = nullptr;
+
+static int32_t clamp_speed(int32_t speed) {
+    if (speed > PULL_MOTOR_SPEED_MAX) return PULL_MOTOR_SPEED_MAX;
+    if (speed < -PULL_MOTOR_SPEED_MAX) return -PULL_MOTOR_SPEED_MAX;
+    return speed;
+}
 
 // speed 1 -> slowest, speed 512 -> PULL_MOTOR_MAX_FREQ_HZ (sign ignored)
 static uint32_t speed_to_hz(int32_t speed) {
+    speed = clamp_speed(speed);
     if (speed < 0) speed = -speed;
-    if (speed > PULL_MOTOR_SPEED_MAX) speed = PULL_MOTOR_SPEED_MAX;
     uint32_t hz = (uint32_t)speed * PULL_MOTOR_MAX_FREQ_HZ / PULL_MOTOR_SPEED_MAX;
     return hz > 0 ? hz : 1;
 }
 
-void pull_motor_init() {
+void pull_motor_init(pull_motor_speed_changed_cb_t callback) {
+    speedChangedCb = callback;
     // Keep the driver disabled (ENA is active low) until the stepper is configured
     pinMode(PULL_MOTOR_ENA_PIN, OUTPUT);
     digitalWrite(PULL_MOTOR_ENA_PIN, HIGH);
@@ -38,10 +46,12 @@ void pull_motor_init() {
 
 void pull_motor_set_speed(int32_t speed) {
     if (!motor) return;
+    speed = clamp_speed(speed);
 
     if (speed == 0) {
         Serial.println("Pull motor stop");
         motor->stopMove();
+        if (speedChangedCb) speedChangedCb(0);
         return;
     }
 
@@ -51,10 +61,12 @@ void pull_motor_set_speed(int32_t speed) {
     } else {
         motor->runBackward();
     }
+    if (speedChangedCb) speedChangedCb(speed);
 }
 
 bool pull_motor_move_to(int32_t position, int32_t speed) {
     if (!motor) return false;
+    speed = clamp_speed(speed);
 
     motor->setSpeedInHz(speed_to_hz(speed));
     auto result = motor->moveTo(position);
@@ -62,14 +74,17 @@ bool pull_motor_move_to(int32_t position, int32_t speed) {
         Serial.printf("Pull motor move rejected, code %d\n", (int)result);
         return false;
     }
+    if (speedChangedCb) speedChangedCb(speed);
     return true;
 }
 
 void pull_motor_change_speed(int32_t speed) {
     if (!motor) return;
+    speed = clamp_speed(speed);
 
     motor->setSpeedInHz(speed_to_hz(speed));
     motor->applySpeedAcceleration();
+    if (speedChangedCb) speedChangedCb(speed);
 }
 
 void pull_motor_stop() { pull_motor_set_speed(0); }
@@ -77,6 +92,7 @@ void pull_motor_stop() { pull_motor_set_speed(0); }
 void pull_motor_hard_stop(int32_t new_position) {
     if (!motor) return;
     motor->forceStopAndNewPosition(new_position);
+    if (speedChangedCb) speedChangedCb(0);
 }
 
 int32_t pull_motor_position() { return motor ? motor->getCurrentPosition() : 0; }
