@@ -1,0 +1,5 @@
+#include "app.h"
+
+void setup() { app_init(); }
+
+void loop() { app_update(); }
