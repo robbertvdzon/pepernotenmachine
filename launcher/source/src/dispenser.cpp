@@ -23,6 +23,7 @@ FastAccelStepper* stepper = NULL;
 static std::atomic<uint8_t> dispenseDuration(DISPENSER_DEFAULT_DURATION);
 static std::atomic<bool> isDispensing(false);
 static std::atomic<bool> continuousDispense(false);
+static std::atomic<bool> reverseDispense(false);
 static TimerHandle_t pollTimer = nullptr;
 static uint32_t dispenseStartMs = 0;
 static uint32_t dispenseLimitMs = 0;
@@ -61,8 +62,9 @@ static void vPollTimerCallback(TimerHandle_t xTimer) {
         Serial.print("Final position: ");
         Serial.println(pos);
         dispenser_finished("Dispenser finished");
-    } else if (pos < -DISPENSER_REVERSE_TOLERANCE_STEPS) {
-        // The library itself is driving backwards: abort immediately
+    } else if ((!reverseDispense.load() && pos < -DISPENSER_REVERSE_TOLERANCE_STEPS) ||
+               (reverseDispense.load() && pos > DISPENSER_REVERSE_TOLERANCE_STEPS)) {
+        // Abort if the stepper moves opposite to the selected direction.
         stepper->forceStopAndNewPosition(0);
         Serial.print("Wrong direction detected, position ");
         Serial.println(pos);
@@ -116,7 +118,7 @@ void dispenser_set_duration(uint8_t seconds) {
 uint8_t dispenser_get_duration(void) { return dispenseDuration.load(); }
 
 void dispenser_control(uint8_t command) {
-    if (command == 1 || command == 2) {
+    if (command == 1 || command == 2 || command == 3) {
         if (stepper == nullptr) {
             Serial.println("Dispenser stepper not initialised, ignoring start");
             return;
@@ -128,7 +130,8 @@ void dispenser_control(uint8_t command) {
             return;
         }
 
-        const bool continuous = command == 2;
+        const bool continuous = command == 2 || command == 3;
+        const bool reverse = command == 3;
         const uint32_t totalMs = continuous ? 0 : (uint32_t)dispenseDuration.load() * 1000UL;
         const uint32_t topSpeed = DISPENSER_TOP_SPEED_HZ;
 
@@ -171,7 +174,7 @@ void dispenser_control(uint8_t command) {
 
         int8_t result;
         if (continuous) {
-            result = (int8_t)stepper->runForward();
+            result = (int8_t)(reverse ? stepper->runBackward() : stepper->runForward());
         } else {
             // Relative move: direction depends only on the sign of totalSteps.
             result = (int8_t)stepper->move((int32_t)totalSteps);
@@ -184,6 +187,7 @@ void dispenser_control(uint8_t command) {
         }
 
         continuousDispense.store(continuous);
+    reverseDispense.store(reverse);
         led_set_state(STATE_LED, LED_RAMP_UP);
         dispenseStartMs = millis();
         dispenseLimitMs = continuous ? 0 : totalMs + DISPENSER_TIMEOUT_MARGIN_MS;

@@ -7,7 +7,7 @@ Firmware for the Pepernotenmachine launcher, built for a generic ESP32 Dev Modul
 - BLE control for motor speed, release-servo angle, launcher preparation and launch, dispenser timing, and preparation state updates
 - Pull motor speed control with a signed value from `-512` to `512`
 - Release servo angle control from `0` to `180` degrees
-- Dispenser timing stored in persistent flash memory with a valid range of `1..60` seconds
+- Dispenser timing stored in persistent flash memory with a valid range of `1..60` seconds, with forward and reverse continuous control
 - Debounced pull-motor end-switch state reporting over BLE
 - Three sinking-current indicator LEDs with `OFF`, `ON`, `FLASH`, `FLASH_FAST`, `PULSE`, `RAMP_UP`, and `RAMP_DOWN` states
 - Up to three simultaneous BLE connections supported by the server
@@ -64,7 +64,7 @@ All multi-byte values are encoded in big-endian order.
 | Prepare launcher | `...26ae` | Write | One byte: `0x01` prepares and dispenses; `0x02` prepares without dispensing. Other payloads are ignored |
 | Launch launcher | `...26b2` | Write | Any write releases the latch; it re-locks after 4 seconds |
 | Dispenser duration | `...26af` | Read, write | One byte, duration in seconds, clamped to `1..60`; saved across restarts |
-| Dispenser control | `...26b0` | Read, write, notify | `0x01` dispense for the configured duration, `0x02` dispense continuously, `0x00` stop; notifications report state |
+| Dispenser control | `...26b0` | Read, write, notify | `0x01` dispense forward for the configured duration, `0x02` dispense continuously forward, `0x03` dispense continuously in reverse, `0x00` stop; notifications report state |
 | Preparation state | `...26b1` | Read, notify | One byte: `0` idle, `1` moving down, `2` moving up slow, `3` moving up fast, `4` error |
 
 A client that connects during preparation can read the latest published state immediately, because the state characteristic keeps the last value. If preparation is refused because the end switch is already active or preparation is already running, the previous state stays in place and no new status notification is published. Preparation moves the launcher into its ready-to-fire position; launching releases the latch and automatically re-locks it after 4 seconds. The launcher can be prepared again after launch.
@@ -86,8 +86,9 @@ Using a BLE client that supports raw hexadecimal writes:
 - Other values or payload lengths written to `...26ae` are ignored
 - Launch the load: write any value to `...26b2` (example: `01`)
 - Set dispenser duration to 4 seconds: `04`
-- Start the dispenser for the configured duration: `01`
-- Start the dispenser continuously: `02`
+- Start the dispenser forward for the configured duration: `01`
+- Start the dispenser continuously forward: `02`
+- Start the dispenser continuously in reverse: `03`
 - Stop the dispenser: `00`
 
 The pull motor uses the magnitude of the signed speed value to set the step rate. The mapping is approximately `14 Hz` at `1` to `7200 Hz` at `512`, with sign controlling direction. A value of zero stops the motor.
