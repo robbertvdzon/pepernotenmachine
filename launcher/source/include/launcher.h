@@ -6,6 +6,6 @@ enum PreparationState : uint8_t { PREPARATION_IDLE, PREPARATION_MOVE_DOWN, PREPA
 typedef void (*preparation_state_cb_t)(uint8_t state);
 
 void launcher_prepare_init(preparation_state_cb_t stateCb);
-void launcher_prepare();
+void launcher_prepare(uint8_t mode = 0x01);
 void launcher_launch();
 void launcher_cancel_auto_lock();

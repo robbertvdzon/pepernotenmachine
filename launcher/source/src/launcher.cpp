@@ -13,6 +13,7 @@
 // Preparation runs in its own task, polling the end switch instead of using an ISR. That keeps every
 // call into the stepper / LED / dispenser code in normal task context.
 static std::atomic<PreparationState> preparationState(PREPARATION_IDLE);
+static std::atomic<bool> dispenseAfterPreparation(true);
 static TaskHandle_t preparationTask = NULL;
 
 static preparation_state_cb_t stateCb = NULL;
@@ -92,7 +93,7 @@ static void run_preparation() {
     Serial.println("Slow distance done, moving up fast");
     set_state(PREPARATION_MOVE_UP_FAST);
     pull_motor_change_speed(PREPARATION_MOVE_UP_FAST_SPEED);
-    dispenser_control(1);
+    if (dispenseAfterPreparation.load()) dispenser_control(1);
 
     while (pull_motor_is_running()) {
         vTaskDelay(pollTicks);
@@ -119,7 +120,7 @@ void launcher_prepare_init(preparation_state_cb_t cb) {
     xTaskCreate(preparation_task, "prepare", 4096, NULL, 2, &preparationTask);
 }
 
-void launcher_prepare() {
+void launcher_prepare(uint8_t mode) {
     PreparationState previous = PREPARATION_IDLE;
     if (!preparationState.compare_exchange_strong(previous, PREPARATION_MOVE_DOWN)) {
         previous = PREPARATION_ERROR;
@@ -128,6 +129,8 @@ void launcher_prepare() {
             return;
         }
     }
+
+    dispenseAfterPreparation.store(mode != 0x02);
 
     release_servo_set_angle(SERVO_CLOSE_ANGLE);
 

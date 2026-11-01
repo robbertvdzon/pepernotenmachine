@@ -61,7 +61,7 @@ All multi-byte values are encoded in big-endian order.
 | Pull motor | `...26a8` | Read, write, notify | Signed 32-bit commanded speed, big-endian and clamped to `-512..512`; notifications follow BLE writes and launcher motor commands |
 | Pull motor end switch | `...26aa` | Read, notify | `0x01` activated, `0x00` inactive |
 | Release servo | `...26ad` | Read, write, notify | One byte, angle `0..180` degrees; notifications report every commanded angle |
-| Prepare launcher | `...26ae` | Write | Any non-empty value starts launcher preparation |
+| Prepare launcher | `...26ae` | Write | One byte: `0x01` prepares and dispenses; `0x02` prepares without dispensing. Other payloads are ignored |
 | Launch launcher | `...26b2` | Write | Any write releases the latch; it re-locks after 4 seconds |
 | Dispenser duration | `...26af` | Read, write | One byte, duration in seconds, clamped to `1..60`; saved across restarts |
 | Dispenser control | `...26b0` | Read, write, notify | `0x01` dispense for the configured duration, `0x02` dispense continuously, `0x00` stop; notifications report state |
@@ -81,7 +81,9 @@ Using a BLE client that supports raw hexadecimal writes:
 - Set pull motor speed to `-512`: `FF FF FE 00`
 - Stop the pull motor: `00 00 00 00`
 - Move the release servo to 90 degrees: `5A`
-- Prepare the launcher: write any non-empty value to `...26ae` (example: `01`)
+- Prepare the launcher and dispense: write `01` to `...26ae`
+- Prepare the launcher without dispensing: write `02` to `...26ae`
+- Other values or payload lengths written to `...26ae` are ignored
 - Launch the load: write any value to `...26b2` (example: `01`)
 - Set dispenser duration to 4 seconds: `04`
 - Start the dispenser for the configured duration: `01`
@@ -98,7 +100,7 @@ Preparation starts only when the pull motor end-switch input is inactive. It:
 
 1. Moves the pull motor down at speed `-512` while LED 1 pulses.
 2. Stops at the end switch, then moves up slowly at speed `128` while LED 1 flashes.
-3. Moves up quickly at speed `512` for the remainder of the travel while the dispenser is started.
+3. Moves up quickly at speed `512` for the remainder of the travel. In prepare mode `0x01`, the dispenser starts during this stage; in mode `0x02`, dispensing is skipped.
 4. Marks preparation idle and leaves LED 1 on; the launcher is ready to fire.
 
 The load launches when the latch is released. After the 4-second auto-lock, the launcher can be prepared again.

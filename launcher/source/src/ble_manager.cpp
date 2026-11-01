@@ -100,12 +100,12 @@ class ReleaseServoCharCallbacks : public NimBLECharacteristicCallbacks {
 
 class PrepareLaunchCharCallbacks : public NimBLECharacteristicCallbacks {
     void onWrite(NimBLECharacteristic* c) override {
-        Serial.println("Received write to prepare characteristic");
         NimBLEAttValue v = c->getValue();
-        Serial.print("Value size: ");
-        Serial.println(v.size());
-        if (v.size() == 0) return;
-        if (prepare_cb) prepare_cb();
+        if (v.size() != 1) return;
+        const uint8_t mode = v.data()[0];
+        if (mode != 0x01 && mode != 0x02) return;
+        Serial.println("Received write to prepare characteristic");
+        if (prepare_cb) prepare_cb(mode);
     }
 };
 

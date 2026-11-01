@@ -25,7 +25,7 @@ static void end_switch_notify_cb(uint8_t payload) {
     ble_notify_end_switch(payload);
 }
 
-static void prepare_ble_cb() { launcher_prepare(); }
+static void prepare_ble_cb(uint8_t mode) { launcher_prepare(mode); }
 static void launch_ble_cb() { launcher_launch(); }
 
 #ifdef ENDURANCE_TEST

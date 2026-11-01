@@ -3,7 +3,7 @@
 
 typedef void (*pull_motor_write_cb_t)(int32_t value);
 typedef void (*release_servo_write_cb_t)(uint8_t angle);
-typedef void (*prepare_write_cb_t)();
+typedef void (*prepare_write_cb_t)(uint8_t mode);
 typedef void (*launch_write_cb_t)();
 typedef void (*dispenser_duration_write_cb_t)(uint8_t seconds);
 typedef void (*dispenser_start_write_cb_t)(uint8_t command);
