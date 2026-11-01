@@ -21,6 +21,7 @@ The pin assignments are defined in `include/config.h`.
 | LED 1 | 19 | Generic indicator LED |
 | LED 2 | 18 | Generic indicator LED |
 | LED 3 | 4 | Generic indicator LED |
+| Extra IO 1 | 21 | Reserved |
 | Extra IO 2 | 22 | Reserved |
 | Dispenser enable | 23 | DRV8825 `EN` |
 | Dispenser step | 25 | DRV8825 `STEP` |
@@ -65,7 +66,6 @@ All multi-byte values are encoded in big-endian order.
 | Dispenser duration | `...26af` | Read, write | One byte, duration in seconds, clamped to `1..60`; saved across restarts |
 | Dispenser control | `...26b0` | Read, write, notify | `0x01` dispense for the configured duration, `0x02` dispense continuously, `0x00` stop; notifications report state |
 | Preparation state | `...26b1` | Read, notify | One byte: `0` idle, `1` moving down, `2` moving up slow, `3` moving up fast, `4` error |
-
 
 A client that connects during preparation can read the latest published state immediately, because the state characteristic keeps the last value. If preparation is refused because the end switch is already active or preparation is already running, the previous state stays in place and no new status notification is published. Preparation moves the launcher into its ready-to-fire position; launching releases the latch and automatically re-locks it after 4 seconds. The launcher can be prepared again after launch.
 
