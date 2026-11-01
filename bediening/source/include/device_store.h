@@ -10,3 +10,8 @@
 bool device_store_load(DeviceKind kind, StoredDevice& out);  // false = none stored
 bool device_store_save(DeviceKind kind, const StoredDevice& dev);
 bool device_store_erase(DeviceKind kind);
+
+// The last launcher state this unit believed in (0 unknown, 1 at rest, 2 armed). Only a HINT for
+// the power-up question: the driver is always asked, whatever is stored here.
+uint8_t launcher_memory_load();
+bool launcher_memory_save(uint8_t state);

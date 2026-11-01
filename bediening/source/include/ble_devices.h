@@ -34,6 +34,7 @@ enum LauncherChar : uint8_t {
     LCH_DISPENSER_CONTROL,
     LCH_PREPARE,
     LCH_LAUNCH,
+    LCH_PULL_MOTOR,  // optional: signed 32-bit big-endian speed -512..512 (maintenance only)
     LCH_COUNT
 };
 

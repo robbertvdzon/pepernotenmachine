@@ -5,9 +5,10 @@
 // from the main loop.
 //
 // Controls:
-//   home screen    short press = actions menu (prepare launcher), hold (UI_LONG_PRESS_MS) = setup
+//   home screen    animated launcher band, function tiles, toast; push = menu (Check launcher, Setup)
 //   menus          turn = move focus, push = select, Back (SW1) = go back
 //   scan screen    Back stops the scan and goes back
+//   check overlay  appears by itself when the launcher state must be confirmed; cannot be dismissed
 
 #include <stdint.h>
 

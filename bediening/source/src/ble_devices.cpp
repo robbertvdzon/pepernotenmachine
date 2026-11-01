@@ -5,9 +5,10 @@
 //                                      name                uuid                                    req    read   sub    write
 const CharSpec LAUNCHER_CHARS[LCH_COUNT] = {
     {"PREPARATION_STATE", "beb5483e-36e1-4688-b7f5-ea07361b26b1", true,  true,  true,  false},
-    {"DISPENSER_CONTROL", "beb5483e-36e1-4688-b7f5-ea07361b26b0", false, true,  true,  false},
+    {"DISPENSER_CONTROL", "beb5483e-36e1-4688-b7f5-ea07361b26b0", false, true,  true,  true},
     {"PREPARE",           "beb5483e-36e1-4688-b7f5-ea07361b26ae", true,  false, false, true},
     {"LAUNCH",            "beb5483e-36e1-4688-b7f5-ea07361b26b2", true,  false, false, true},
+    {"PULL_MOTOR",        "beb5483e-36e1-4688-b7f5-ea07361b26a8", false, true,  true,  true},
 };
 
 const CharSpec SWITCHBOARD_CHARS[SCH_COUNT] = {

@@ -34,7 +34,6 @@ constexpr uint8_t DISPLAY_ROTATION = 1;
 #endif
 
 // ---------------------------------------------------------------- UI input
-constexpr uint32_t UI_LONG_PRESS_MS = 700;   // hold the encoder button on the home screen = open setup
 constexpr bool ENCODER_DIRECTION_INVERT = false;  // flip if turning clockwise moves the focus up
 constexpr uint32_t UI_SCAN_SECONDS = 10;
 

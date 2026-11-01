@@ -89,3 +89,19 @@ bool device_store_erase(DeviceKind kind) {
     LOGI(TAG, "erased %s", device_kind_name(kind));
     return true;
 }
+
+uint8_t launcher_memory_load() {
+    Preferences prefs;
+    if (!prefs.begin(NAMESPACE, false)) return 0;
+    const uint8_t v = prefs.getUChar("lstate", 0);
+    prefs.end();
+    return v <= 2 ? v : 0;
+}
+
+bool launcher_memory_save(uint8_t state) {
+    Preferences prefs;
+    if (!prefs.begin(NAMESPACE, false)) return false;
+    const bool ok = prefs.putUChar("lstate", state) == 1;
+    prefs.end();
+    return ok;
+}
