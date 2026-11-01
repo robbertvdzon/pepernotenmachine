@@ -4,6 +4,7 @@
 #include "../include/led.h"
 #include "../include/release_servo.h"
 #include "../include/dispenser.h"
+#include "../include/end_switch.h"
 #include "../include/launcher.h"
 #include <atomic>
 
@@ -30,11 +31,8 @@ static void set_state(PreparationState s) {
 }
 
 static const TickType_t pollTicks = (pdMS_TO_TICKS(2) > 0) ? pdMS_TO_TICKS(2) : 1;
-static const uint32_t switchDebounceMs = 10;  // switch must stay pressed this long to count
 static const uint32_t moveUpSlowSteps = PREPARATION_MOVE_UP_SLOW_STEPS;
 static const uint32_t moveUpTotalSteps = PREPARATION_MOVE_UP_SLOW_STEPS + PREPARATION_MOVE_UP_FAST_STEPS;
-
-static bool switch_pressed() { return digitalRead(PULL_MOTOR_END_SWITCH_PIN) == LOW; }
 
 static void abort_preparation(const char* reason) {
     Serial.printf("Preparation aborted: %s\n", reason);
@@ -50,20 +48,10 @@ static void run_preparation() {
     pull_motor_set_speed(-PREPARATION_MOVE_DOWN_SPEED);
 
     const uint32_t downStart = millis();
-    bool pressed = false;
-    uint32_t pressedSince = 0;
     for (;;) {
         vTaskDelay(pollTicks);
 
-        if (switch_pressed()) {
-            if (!pressed) {
-                pressed = true;
-                pressedSince = millis();
-            }
-            if (millis() - pressedSince >= switchDebounceMs) break;
-        } else {
-            pressed = false;
-        }
+        if (end_switch_get_state()) break;
 
         if (millis() - downStart > PREPARATION_MOVE_DOWN_TIMEOUT_MS) {
             abort_preparation("end switch not reached in time");
@@ -128,7 +116,6 @@ static void preparation_task(void* arg) {
 void launcher_prepare_init(preparation_state_cb_t cb) {
     stateCb = cb;
     led_set_state(STATE_LED, LED_OFF);
-    pinMode(PULL_MOTOR_END_SWITCH_PIN, INPUT_PULLUP);
     xTaskCreate(preparation_task, "prepare", 4096, NULL, 2, &preparationTask);
 }
 
@@ -144,7 +131,7 @@ void launcher_prepare() {
 
     release_servo_set_angle(SERVO_CLOSE_ANGLE);
 
-    if (switch_pressed()) {
+    if (end_switch_is_activated()) {
         Serial.println("Cannot prepare launcher: switch is currently activated");
         preparationState = previous;  // not published: clients still have the old state
         return;

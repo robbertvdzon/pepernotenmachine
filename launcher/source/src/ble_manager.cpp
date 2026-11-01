@@ -3,12 +3,13 @@
 #include "../include/ble_manager.h"
 #include "../include/config.h"
 #include "../include/dispenser.h"
+#include "../include/end_switch.h"
 #include "../include/release_servo.h"
 
 static NimBLEServer* pServer = nullptr;
 static NimBLEService* pService = nullptr;
 static NimBLECharacteristic* pPullMotorCharacteristic = nullptr;
-static NimBLECharacteristic* pButtonCharacteristic = nullptr;
+static NimBLECharacteristic* pEndSwitchCharacteristic = nullptr;
 static NimBLECharacteristic* pReleaseServoCharacteristic = nullptr;
 static NimBLECharacteristic* pPrepareCharacteristic = nullptr;
 static NimBLECharacteristic* pLaunchCharacteristic = nullptr;
@@ -166,9 +167,11 @@ void ble_init(pull_motor_write_cb_t motorCb, release_servo_write_cb_t releaseSer
     uint8_t initAngle = release_servo_get_angle();
     pReleaseServoCharacteristic->setValue(&initAngle, 1);
 
-    // Button characteristic: read/notify
-    pButtonCharacteristic = pService->createCharacteristic(BUTTON_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ);
-    add_ccc_descriptor(pButtonCharacteristic);
+    // End-switch characteristic: read/notify
+    pEndSwitchCharacteristic = pService->createCharacteristic(END_SWITCH_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::READ);
+    add_ccc_descriptor(pEndSwitchCharacteristic);
+    uint8_t initialEndSwitchState = end_switch_get_state();
+    pEndSwitchCharacteristic->setValue(&initialEndSwitchState, 1);
 
     // Prepare launch characteristic: write
     pPrepareCharacteristic = pService->createCharacteristic(PREPARE_LAUNCH_CHARACTERISTIC_UUID, NIMBLE_PROPERTY::WRITE);
@@ -210,11 +213,11 @@ bool ble_is_connected() {
     return connectedCount > 0;
 }
 
-void ble_notify_button(uint8_t payload) {
-    if (pButtonCharacteristic == nullptr) return;
+void ble_notify_end_switch(uint8_t payload) {
+    if (pEndSwitchCharacteristic == nullptr) return;
     uint8_t b = payload;
-    pButtonCharacteristic->setValue(&b, 1);
-    pButtonCharacteristic->notify();
+    pEndSwitchCharacteristic->setValue(&b, 1);
+    pEndSwitchCharacteristic->notify();
 }
 
 void ble_notify_pull_motor_speed(int32_t speed) {

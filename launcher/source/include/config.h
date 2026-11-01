@@ -6,7 +6,6 @@
 static const int LED_1_PIN = 19;           // Generic indicator LED (sinking current)
 static const int LED_2_PIN = 18;           // Generic indicator LED (sinking current)
 static const int LED_3_PIN = 4;            // Generic indicator LED (sinking current)
-static const int EXTRA_IO_1_PIN = 21;      // Not yet assigned
 static const int EXTRA_IO_2_PIN = 22;      // Not yet assigned
 static const int DISPENSER_EN_PIN = 23;    // Connected to EN(9) pin of DRV8825 stepper driver
 static const int DISPENSER_STEP_PIN = 25;  // Connected to STEP(15) pin of DRV8825 stepper driver
@@ -20,7 +19,7 @@ static const int RELEASE_SERVO_PIN = 33;  // Conected to servo for release mecha
 // BLE UUIDs
 #define SERVICE_UUID "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define PULL_MOTOR_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
-#define BUTTON_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26aa"
+#define END_SWITCH_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26aa"
 #define RELEASE_SERVO_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26ad"
 #define PREPARE_LAUNCH_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26ae"
 #define DISPENSER_DURATION_CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26af"

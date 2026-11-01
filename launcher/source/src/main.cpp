@@ -2,12 +2,12 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/timers.h>
 
-// #define ENDURANCE_TEST  // TEMPORARY TEST CODE: prepare and launch repeatedly without BLE or button input
+// #define ENDURANCE_TEST  // TEMPORARY TEST CODE: prepare and launch repeatedly without BLE or end-switch input
 
 #include "../include/config.h"
 #include "../include/release_servo.h"
 #include "../include/pull_motor.h"
-#include "../include/button.h"
+#include "../include/end_switch.h"
 #include "../include/ble_manager.h"
 #include "../include/launcher.h"
 #include "../include/dispenser.h"
@@ -21,8 +21,8 @@ static void release_servo_write_cb(uint8_t angle) {
     release_servo_set_angle(angle);
 }
 
-static void button_notify_cb(uint8_t payload) {
-    ble_notify_button(payload);
+static void end_switch_notify_cb(uint8_t payload) {
+    ble_notify_end_switch(payload);
 }
 
 static void prepare_ble_cb() { launcher_prepare(); }
@@ -78,8 +78,8 @@ void setup() {
     pull_motor_init(ble_notify_pull_motor_speed);
     release_servo_init(ble_notify_servo_angle);
     dispenser_init(dispenser_notify_cb);
+    end_switch_init(end_switch_notify_cb);
     launcher_prepare_init(preparation_state_notify_cb);
-    button_init(button_notify_cb);
 
     // initialize BLE with callbacks (motor, horn, servo)
     ble_init(pull_motor_write_cb, release_servo_write_cb, prepare_ble_cb, launch_ble_cb, dispenser_duration_write_cb,

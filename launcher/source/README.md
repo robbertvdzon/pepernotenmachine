@@ -1,6 +1,6 @@
 # Launcher
 
-Firmware for the Pepernotenmachine launcher, built for a generic ESP32 Dev Module with PlatformIO and the Arduino framework. The code in this repository controls the pull motor, release servo, dispenser stepper mechanism, three indicator LEDs, a physical button, and a BLE interface.
+Firmware for the Pepernotenmachine launcher, built for a generic ESP32 Dev Module with PlatformIO and the Arduino framework. The code in this repository controls the pull motor, release servo, dispenser stepper mechanism, three indicator LEDs, the pull-motor end switch, and a BLE interface.
 
 ## Features
 
@@ -8,7 +8,7 @@ Firmware for the Pepernotenmachine launcher, built for a generic ESP32 Dev Modul
 - Pull motor speed control with a signed value from `-512` to `512`
 - Release servo angle control from `0` to `180` degrees
 - Dispenser timing stored in persistent flash memory with a valid range of `1..60` seconds
-- Debounced physical-button handling that prepares the launcher on release and launches on press
+- Debounced pull-motor end-switch state reporting over BLE
 - Three sinking-current indicator LEDs with `OFF`, `ON`, `FLASH`, `FLASH_FAST`, `PULSE`, `RAMP_UP`, and `RAMP_DOWN` states
 - Up to three simultaneous BLE connections supported by the server
 
@@ -21,7 +21,6 @@ The pin assignments are defined in `include/config.h`.
 | LED 1 | 19 | Generic indicator LED |
 | LED 2 | 18 | Generic indicator LED |
 | LED 3 | 4 | Generic indicator LED |
-| Button / extra IO 1 | 21 | Active-low button input with internal pull-up |
 | Extra IO 2 | 22 | Reserved |
 | Dispenser enable | 23 | DRV8825 `EN` |
 | Dispenser step | 25 | DRV8825 `STEP` |
@@ -59,12 +58,12 @@ All multi-byte values are encoded in big-endian order.
 | Characteristic | UUID suffix | Properties | Payload |
 | --- | --- | --- | --- |
 | Pull motor | `...26a8` | Read, write, notify | Signed 32-bit commanded speed, big-endian and clamped to `-512..512`; notifications follow BLE writes and launcher motor commands |
-| Button | `...26aa` | Read, notify | `0x01` pressed, `0x00` released |
+| Pull motor end switch | `...26aa` | Read, notify | `0x01` activated, `0x00` inactive |
 | Release servo | `...26ad` | Read, write, notify | One byte, angle `0..180` degrees; notifications report every commanded angle |
 | Prepare launcher | `...26ae` | Write | Any non-empty value starts launcher preparation |
 | Launch launcher | `...26b2` | Write | Any write releases the latch; it re-locks after 4 seconds |
 | Dispenser duration | `...26af` | Read, write | One byte, duration in seconds, clamped to `1..60`; saved across restarts |
-| Dispenser control | `...26b0` | Read, write, notify | `0x01` start, `0x00` stop; notifications report state |
+| Dispenser control | `...26b0` | Read, write, notify | `0x01` dispense for the configured duration, `0x02` dispense continuously, `0x00` stop; notifications report state |
 | Preparation state | `...26b1` | Read, notify | One byte: `0` idle, `1` moving down, `2` moving up slow, `3` moving up fast, `4` error |
 
 
@@ -85,12 +84,13 @@ Using a BLE client that supports raw hexadecimal writes:
 - Prepare the launcher: write any non-empty value to `...26ae` (example: `01`)
 - Launch the load: write any value to `...26b2` (example: `01`)
 - Set dispenser duration to 4 seconds: `04`
-- Start the dispenser: `01`
+- Start the dispenser for the configured duration: `01`
+- Start the dispenser continuously: `02`
 - Stop the dispenser: `00`
 
 The pull motor uses the magnitude of the signed speed value to set the step rate. The mapping is approximately `14 Hz` at `1` to `7200 Hz` at `512`, with sign controlling direction. A value of zero stops the motor.
 
-The button callback is wired into the launcher controls: a button release (`0x00`) prepares the launcher, while a pressed payload (`0x01` and similar) launches the load by opening the release servo to `SERVO_OPEN_ANGLE = 40`. The latch returns to `SERVO_CLOSE_ANGLE = 66` after 4 seconds.
+The end-switch characteristic reports activation after the switch has remained active for 10 ms; inactive state is reported immediately. The switch is active-low and uses the pull-up on `PULL_MOTOR_END_SWITCH_PIN`.
 
 ## Launcher operation
 
@@ -113,7 +113,7 @@ Preparation state values are published through the BLE characteristic as `PREPAR
 - `src/release_servo.cpp` controls the release servo through `ESP32Servo`.
 - `src/dispenser.cpp` controls the dispenser and stores its duration in persistent storage.
 - `src/launcher.cpp` coordinates launcher preparation and launch using the pull motor, release servo, end switch, timers, and LED 1.
-- `src/button.cpp` debounces the button in an interrupt and FreeRTOS task.
+- `src/end_switch.cpp` reads the active-low pull-motor end switch and reports debounced state changes.
 - `src/led.c` drives the three indicator LEDs with a periodic FreeRTOS timer and stops the timer when all LEDs are static to save power.
 - `include/config.h` contains pin assignments, UUIDs, and motion limits.
 
@@ -136,7 +136,7 @@ The serial monitor runs at 115200 baud. The project dependencies are declared in
 ## Troubleshooting
 
 - If the device does not advertise, reset the ESP32 and check the serial output at 115200 baud.
-- If button notifications are inverted, check that the button connects the input to ground when pressed.
+- If end-switch notifications are inverted, check that the switch connects the input to ground when activated.
 - If a motor does not move, check driver enable polarity, shared ground, motor-driver power, and the step/direction wiring.
 - If launcher preparation refuses to start, check the end-switch state and wiring.
 - The dispenser duration is clamped to 1 through 60 seconds by the firmware.
