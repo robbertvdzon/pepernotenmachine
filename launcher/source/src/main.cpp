@@ -23,13 +23,6 @@ static void release_servo_write_cb(uint8_t angle) {
 
 static void button_notify_cb(uint8_t payload) {
     ble_notify_button(payload);
-
-    if (payload == 0) {
-        release_servo_set_angle(SERVO_CLOSE_ANGLE);
-        launcher_prepare();
-    } else {
-        launcher_launch();
-    }
 }
 
 static void prepare_ble_cb() { launcher_prepare(); }
