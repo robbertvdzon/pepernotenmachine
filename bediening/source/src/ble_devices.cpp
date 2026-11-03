@@ -9,6 +9,8 @@ const CharSpec LAUNCHER_CHARS[LCH_COUNT] = {
     {"PREPARE",           "beb5483e-36e1-4688-b7f5-ea07361b26ae", true,  false, false, true},
     {"LAUNCH",            "beb5483e-36e1-4688-b7f5-ea07361b26b2", true,  false, false, true},
     {"PULL_MOTOR",        "beb5483e-36e1-4688-b7f5-ea07361b26a8", false, true,  true,  true},
+    {"BUCKET_SWITCH",     "beb5483e-36e1-4688-b7f5-ea07361b26aa", false, true,  true,  false},
+    {"DISPENSER_TIME",    "beb5483e-36e1-4688-b7f5-ea07361b26af", false, true,  false, true},
 };
 
 const CharSpec SWITCHBOARD_CHARS[SCH_COUNT] = {

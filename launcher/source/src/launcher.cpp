@@ -14,11 +14,11 @@
 // call into the stepper / LED / dispenser code in normal task context.
 static std::atomic<PreparationState> preparationState(PREPARATION_IDLE);
 static std::atomic<bool> dispenseAfterPreparation(true);
-static TaskHandle_t preparationTask = NULL;
+static TaskHandle_t preparationTask = nullptr;
 
-static preparation_state_cb_t stateCb = NULL;
+static preparation_state_cb_t stateCb = nullptr;
 
-static TimerHandle_t autoLockTimer = NULL;
+static TimerHandle_t autoLockTimer = nullptr;
 
 static void auto_lock_timer_cb(TimerHandle_t xTimer) { release_servo_set_angle(SERVO_CLOSE_ANGLE); }
 
@@ -117,7 +117,7 @@ static void preparation_task(void* arg) {
 void launcher_prepare_init(preparation_state_cb_t cb) {
     stateCb = cb;
     led_set_state(STATE_LED, LED_OFF);
-    xTaskCreate(preparation_task, "prepare", 4096, NULL, 2, &preparationTask);
+    xTaskCreate(preparation_task, "prepare", 4096, nullptr, 2, &preparationTask);
 }
 
 void launcher_prepare(uint8_t mode) {
@@ -147,18 +147,18 @@ void launcher_prepare(uint8_t mode) {
 void launcher_launch() {
     release_servo_set_angle(SERVO_OPEN_ANGLE);
 
-    if (autoLockTimer == NULL) {
-        autoLockTimer = xTimerCreate("autoLock", pdMS_TO_TICKS(4000), pdFALSE, NULL, auto_lock_timer_cb);
+    if (autoLockTimer == nullptr) {
+        autoLockTimer = xTimerCreate("autoLock", pdMS_TO_TICKS(4000), pdFALSE, nullptr, auto_lock_timer_cb);
     }
 
-    if (autoLockTimer != NULL) {
+    if (autoLockTimer != nullptr) {
         xTimerStop(autoLockTimer, 0);
         xTimerStart(autoLockTimer, 0);
     }
 }
 
 void launcher_cancel_auto_lock() {
-    if (autoLockTimer != NULL) {
+    if (autoLockTimer != nullptr) {
         xTimerStop(autoLockTimer, 0);
     }
 }

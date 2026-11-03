@@ -48,3 +48,8 @@ constexpr uint32_t DISPENSE_START_TIMEOUT_MS = 2000;  // the dispenser must repo
 constexpr uint32_t DISPENSE_STOP_RESEND_MS = 500;     // the stop (0x00) is repeated until the dispenser reports "stopped"
 constexpr uint8_t DISPENSE_STOP_MIN_SENDS = 2;        // ... and is always sent at least twice (the start may be late or unreported)
 constexpr uint32_t DISPENSE_STUCK_MS = 3000;          // stop still not confirmed after this long: tell the driver
+
+// ---- dispenser time (menu "Maintenance" -> "Dispenser time"): seconds of the dispense cycle, stored by the launcher ----
+constexpr uint8_t DURATION_MIN_S = 1;
+constexpr uint8_t DURATION_MAX_S = 60;
+constexpr uint32_t DURATION_VERIFY_TIMEOUT_MS = 3000;  // after the write, the read-back must be done within this time

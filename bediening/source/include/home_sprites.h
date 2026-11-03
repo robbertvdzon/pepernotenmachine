@@ -24,4 +24,8 @@ bool tileAnimates(TileState st);
 // 160x18 toast background with its colored bar, inset by HOME_TOAST_MARGIN (the text is a label on top).
 void drawToast(const gfx::Surface& s, ToastLevel level);
 
+// Big number (digits of 20x28 px, centered) with turn arrows left and right, for value screens; value < 0 draws "--".
+// 160x40 surface.
+void drawBigNumber(const gfx::Surface& s, int value, uint32_t color);
+
 }  // namespace sprites

@@ -1,64 +1,128 @@
+
 #include "../include/end_switch.h"
 #include "../include/config.h"
+
 #include <Arduino.h>
 #include <atomic>
+
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 
+// -----------------------------------------------------------------------------
+// Configuration
+// -----------------------------------------------------------------------------
+
+static constexpr uint32_t END_SWITCH_POLL_MS = 5;
+static constexpr uint32_t END_SWITCH_DEBOUNCE_MS = 15;
+
+static constexpr uint32_t END_SWITCH_TASK_STACK = 2048;
+static constexpr UBaseType_t END_SWITCH_TASK_PRIORITY = 1;
+
+// -----------------------------------------------------------------------------
+// Internal state
+// -----------------------------------------------------------------------------
+
 static end_switch_notify_cb_t notifyCb = nullptr;
+
 static std::atomic<uint8_t> currentState(0);
-static const TickType_t pollTicks = (pdMS_TO_TICKS(2) > 0) ? pdMS_TO_TICKS(2) : 1;
-static const uint32_t debounceMs = 10;
-static TaskHandle_t endSwitchTaskHandle = NULL;
 
-bool end_switch_is_activated() { return digitalRead(PULL_MOTOR_END_SWITCH_PIN) == LOW; }
+static TaskHandle_t endSwitchTaskHandle = nullptr;
 
-static uint8_t read_state() { return end_switch_is_activated() ? 1 : 0; }
+// -----------------------------------------------------------------------------
+// Hardware access
+// -----------------------------------------------------------------------------
+
+bool end_switch_is_activated(void) { return digitalRead(PULL_MOTOR_END_SWITCH_PIN) == LOW; }
+
+// -----------------------------------------------------------------------------
+// Publish state change
+// -----------------------------------------------------------------------------
 
 static void publish_state(uint8_t payload) {
     currentState.store(payload);
+
     Serial.print("End switch ");
     Serial.println(payload ? "activated" : "deactivated");
-    if (notifyCb) notifyCb(payload);
+
+    if (notifyCb != nullptr) {
+        notifyCb(payload);
+    }
 }
+
+// -----------------------------------------------------------------------------
+// End-switch monitoring task
+//
+// Debounces both activation and deactivation.
+// Only publishes actual stable state changes.
+// -----------------------------------------------------------------------------
 
 static void end_switch_task(void* arg) {
     (void)arg;
-    bool candidateActive = end_switch_is_activated();
+
+    bool candidateState = end_switch_is_activated();
     uint32_t candidateSince = millis();
+
+    const TickType_t pollTicks = (pdMS_TO_TICKS(END_SWITCH_POLL_MS) > 0) ? pdMS_TO_TICKS(END_SWITCH_POLL_MS) : 1;
 
     for (;;) {
         vTaskDelay(pollTicks);
-        const bool activated = end_switch_is_activated();
 
-        if (!activated) {
-            candidateActive = false;
-            candidateSince = millis();
-            if (currentState.load() != 0) publish_state(0);
-            continue;
+        const bool rawState = end_switch_is_activated();
+        const uint32_t now = millis();
+
+        // Detect a change in the physical input.
+        if (rawState != candidateState) {
+            candidateState = rawState;
+            candidateSince = now;
         }
 
-        if (!candidateActive) {
-            candidateActive = true;
-            candidateSince = millis();
-        }
+        // Publish only after the candidate state has remained stable.
+        const uint8_t publishedState = currentState.load();
 
-        if (currentState.load() == 0 && millis() - candidateSince >= debounceMs) {
-            publish_state(1);
+        if (candidateState != (publishedState != 0) && now - candidateSince >= END_SWITCH_DEBOUNCE_MS) {
+            publish_state(candidateState ? 1 : 0);
         }
     }
 }
+
+// -----------------------------------------------------------------------------
+// Initialization
+// -----------------------------------------------------------------------------
 
 void end_switch_init(end_switch_notify_cb_t cb) {
-    notifyCb = cb;
-    pinMode(PULL_MOTOR_END_SWITCH_PIN, INPUT_PULLUP);
-    currentState.store(read_state());
-
-    if (endSwitchTaskHandle == NULL &&
-        xTaskCreate(end_switch_task, "end_switch", 2048, NULL, 1, &endSwitchTaskHandle) != pdPASS) {
-        endSwitchTaskHandle = NULL;
-        Serial.println("Failed to create end-switch task");
+    // Prevent accidental duplicate initialization.
+    if (endSwitchTaskHandle != nullptr) {
+        Serial.println("End switch already initialized");
+        return;
     }
+
+    notifyCb = cb;
+
+    pinMode(PULL_MOTOR_END_SWITCH_PIN, INPUT_PULLUP);
+
+    // Read initial hardware state.
+    const uint8_t initialState = end_switch_is_activated() ? 1 : 0;
+
+    currentState.store(initialState);
+
+    Serial.print("End switch initial state: ");
+    Serial.println(initialState ? "activated" : "deactivated");
+
+    // Create monitoring task.
+    const BaseType_t result = xTaskCreate(end_switch_task, "end_switch", END_SWITCH_TASK_STACK, nullptr,
+                                          END_SWITCH_TASK_PRIORITY, &endSwitchTaskHandle);
+
+    if (result != pdPASS) {
+        endSwitchTaskHandle = nullptr;
+        Serial.println("Failed to create end-switch task");
+        return;
+    }
+
+    Serial.println("End switch initialized successfully");
 }
 
-uint8_t end_switch_get_state() { return currentState.load(); }
+// -----------------------------------------------------------------------------
+// Get current stable state
+// -----------------------------------------------------------------------------
+
+uint8_t end_switch_get_state(void) { return currentState.load(); }

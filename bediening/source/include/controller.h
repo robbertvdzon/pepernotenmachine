@@ -2,7 +2,7 @@
 
 // Glue between the hardware modules and the pure control logic (control_logic.h):
 // gathers the switch and device states, runs the logic once per loop pass, executes the
-// resulting commands through the BLE link manager and drives L2, L4, L6, L7 and L8.
+// resulting commands through the BLE link manager and drives L2, L4, L6, L7, L8 and L9.
 
 #include <Arduino.h>
 
@@ -33,14 +33,21 @@ Known controller_stored_state();
 void controller_set_maintenance(bool on);
 // "Release bucket" was confirmed: writes 1 to LAUNCH once (a real launch).
 void controller_request_release();
-// The knob is held on the Dispense screen (call every pass; false whenever it is not).
-void controller_set_dispense_held(bool held);
+// The knob is held on the Dispense screen: +1 on "dispense", -1 on "reverse", 0 = not held (call every pass).
+void controller_set_dispense_hold(int8_t dir);
 RunState controller_dispense_state();
 // Motor control: +1 = knob held on "up", -1 = on "down", 0 = not held (call every pass). Runs the pull motor at +-512.
 void controller_set_motor_hold(int8_t dir);
 RunState controller_motor_state();
 // The latest message and when it appeared (millis), for screens that show it.
 Msg controller_last_message(uint32_t* at);
+// Dispenser time (seconds, kept by the launcher): refresh the reading / save a new value (written, read back, compared).
+void controller_request_duration_read();
+void controller_request_duration_save(uint8_t seconds);
+bool controller_duration(uint8_t* seconds);  // false = no current reading
+bool controller_duration_busy();             // a save is in progress
+// The switch at the bottom of the launcher (bucket down): false = no reading (link down / not available).
+bool controller_bucket_switch(bool* pressed);
 
 // Everything the animated home screen needs, except the time (the caller sets `now`).
 void controller_home_inputs(HomeInputs* out);

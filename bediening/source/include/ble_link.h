@@ -56,3 +56,8 @@ uint32_t ble_link_write(DeviceKind kind, uint8_t char_index, const uint8_t* data
 // Pending until the BLE task has executed it; Ok / Failed afterwards. Unknown = result was
 // overwritten by newer writes (only the last 16 are kept) or seq was never issued.
 WriteState ble_link_write_state(uint32_t seq);
+
+// Queues ONE read of a characteristic (for values without notifications, e.g. after writing one): executed by the
+// BLE task after the writes queued before it, the fresh value then shows up in ble_link_get_value(). Same sequence
+// number / ble_link_write_state() / 0 = nothing queued as for writes.
+uint32_t ble_link_read(DeviceKind kind, uint8_t char_index);

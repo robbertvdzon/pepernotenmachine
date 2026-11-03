@@ -40,13 +40,15 @@ const char* msg_text(Msg m) {
         case Msg::DispenseStuck: return STR_MSG_DISPENSE_STUCK;
         case Msg::MotorFailed: return STR_MSG_MOTOR_FAILED;
         case Msg::MotorStuck: return STR_MSG_MOTOR_STUCK;
-        case Msg::MotorStopping: return STR_MSG_MOTOR_STOPPING;
+        case Msg::StillStopping: return STR_MSG_STILL_STOPPING;
+        case Msg::DurationSaved: return STR_MSG_DURATION_SAVED;
+        case Msg::DurationFailed: return STR_MSG_DURATION_FAILED;
         case Msg::None: break;
     }
     return "";
 }
 
-bool msg_is_problem(Msg m) { return m != Msg::None && m != Msg::LaunchSent && m != Msg::ReleaseOk; }
+bool msg_is_problem(Msg m) { return m != Msg::None && m != Msg::LaunchSent && m != Msg::ReleaseOk && m != Msg::DurationSaved; }
 
 ControlLogic::ControlLogic() {
     memset(relaySent_, 0, sizeof(relaySent_));
@@ -67,6 +69,7 @@ void ControlLogic::addCommand(ControlOutputs& out, uint8_t device, uint8_t ci, u
     c.data[2] = 0;
     c.data[3] = 0;
     c.tag = tag;
+    c.read = false;
 }
 
 void ControlLogic::addCommandBytes(ControlOutputs& out, uint8_t device, uint8_t ci, const uint8_t* data, uint8_t len, CmdTag tag) {
@@ -77,6 +80,18 @@ void ControlLogic::addCommandBytes(ControlOutputs& out, uint8_t device, uint8_t 
     c.len = len > 4 ? 4 : len;
     for (uint8_t i = 0; i < 4; i++) c.data[i] = i < c.len ? data[i] : 0;
     c.tag = tag;
+    c.read = false;
+}
+
+void ControlLogic::addRead(ControlOutputs& out, uint8_t device, uint8_t ci, CmdTag tag) {
+    if (out.cmdCount >= sizeof(out.cmds) / sizeof(out.cmds[0])) return;
+    Command& c = out.cmds[out.cmdCount++];
+    c.device = device;
+    c.charIndex = ci;
+    c.len = 0;
+    for (uint8_t i = 0; i < 4; i++) c.data[i] = 0;
+    c.tag = tag;
+    c.read = true;
 }
 
 // What we believed about the launcher can no longer be trusted: stop acting on it, ask the driver.
@@ -279,7 +294,7 @@ void ControlLogic::handleMaintenance(const ControlInputs& in, ControlOutputs& ou
     // ---- hold to run: the dispenser (write 2 = until 0) and the pull motor (speed +512 / -512, stop = 0)
     static const HoldSpec DISPENSER = {LCH_DISPENSER_CONTROL, CmdTag::DispenseStart, Msg::DispenseFailed, Msg::DispenseStuck, true};
     static const HoldSpec MOTOR = {LCH_PULL_MOTOR, CmdTag::MotorStart, Msg::MotorFailed, Msg::MotorStuck, false};
-    out.dispense = runHold(dispenseHold_, DISPENSER, in.dispenseHeld ? 1 : 0, in.dispenserValid, in.dispenser != 0,
+    out.dispense = runHold(dispenseHold_, DISPENSER, in.dispenseHold, in.dispenserValid, in.dispenser != 0,
                            motorHold_.owned, in, out);
     out.motor = runHold(motorHold_, MOTOR, in.motorHold, in.motorValid, in.motor != 0, dispenseHold_.owned, in, out);
 }
@@ -301,7 +316,7 @@ RunState ControlLogic::runHold(HoldState& h, const HoldSpec& sp, int8_t dir, boo
         if (!in.launcherConnected) reject = Msg::LaunchOffline;
         else if (!in.prepValid) reject = Msg::LaunchStateUnknown;
         else if (busy || others_running || otherOwned) reject = Msg::MaintBusy;
-        else if (h.owned && !sp.restartWhileStopping) reject = Msg::MotorStopping;
+        else if (h.owned && (!sp.restartWhileStopping || dir != h.dir)) reject = Msg::StillStopping;  // never reverse on the fly
         if (reject != Msg::None) {
             set_message(out, reject);
         } else {
@@ -313,7 +328,7 @@ RunState ControlLogic::runHold(HoldState& h, const HoldSpec& sp, int8_t dir, boo
                 start[1] = dir > 0 ? 0x00 : 0xFF;
                 start[2] = dir > 0 ? 0x02 : 0xFE;
             } else {
-                start[0] = 2;
+                start[0] = dir > 0 ? 2 : 3;  // 0x02 dispense, 0x03 reverse (both until 0x00)
             }
             addCommandBytes(out, DEV_LAUNCHER, sp.chr, start, start_len, sp.tag);
             h.owned = true;
@@ -365,6 +380,56 @@ RunState ControlLogic::runHold(HoldState& h, const HoldSpec& sp, int8_t dir, boo
         }
     }
     return state;
+}
+
+// ------------------------------------------------------------ dispenser time
+void ControlLogic::handleDuration(const ControlInputs& in, ControlOutputs& out) {
+    const uint32_t now = in.now;
+    // 1. the outcome of what was sent
+    if (durPhase_ == DurPhase::Writing) {
+        if (in.durationWriteResult == Result::Ok) {
+            addRead(out, DEV_LAUNCHER, LCH_DISPENSER_DURATION, CmdTag::DurationVerify);  // never trust the write alone
+            durPhase_ = DurPhase::Verifying;
+            durAt_ = now;
+        } else if (in.durationWriteResult == Result::Failed) {
+            set_message(out, Msg::DurationFailed);
+            durPhase_ = DurPhase::Idle;
+        }
+    } else if (durPhase_ == DurPhase::Verifying) {
+        if (in.durationReadResult == Result::Ok) {
+            set_message(out, (in.durationValid && in.duration == durWant_) ? Msg::DurationSaved : Msg::DurationFailed);
+            durPhase_ = DurPhase::Idle;
+        } else if (in.durationReadResult == Result::Failed || elapsed(now, durAt_) > DURATION_VERIFY_TIMEOUT_MS) {
+            set_message(out, Msg::DurationFailed);
+            durPhase_ = DurPhase::Idle;
+        }
+    }
+
+    // 2. new requests (only from the maintenance screens, one at a time)
+    if (durPhase_ == DurPhase::Idle && in.maintenance) {
+        const bool link = in.launcherConnected && in.prepValid;
+        const bool busy = (link && in.prep >= 1 && in.prep <= 3) || prepareRequested_;
+        if (in.durationSave) {
+            Msg reject = Msg::None;
+            if (!in.launcherConnected) reject = Msg::LaunchOffline;
+            else if (!in.prepValid) reject = Msg::LaunchStateUnknown;
+            else if (busy) reject = Msg::MaintBusy;
+            if (reject != Msg::None) {
+                set_message(out, reject);
+            } else {
+                uint8_t v = in.durationValue;
+                if (v < DURATION_MIN_S) v = DURATION_MIN_S;
+                if (v > DURATION_MAX_S) v = DURATION_MAX_S;
+                addCommand(out, DEV_LAUNCHER, LCH_DISPENSER_DURATION, v, 0, 1, CmdTag::DurationWrite);
+                durWant_ = v;
+                durPhase_ = DurPhase::Writing;
+                durAt_ = now;
+            }
+        } else if (in.durationReadRequest && in.launcherConnected) {
+            addRead(out, DEV_LAUNCHER, LCH_DISPENSER_DURATION, CmdTag::DurationRead);
+        }
+    }
+    out.durationBusy = durPhase_ != DurPhase::Idle;
 }
 
 // -------------------------------------------------------------------- relays
@@ -491,13 +556,14 @@ led_state_t ControlLogic::handlePanic(const ControlInputs& in, ControlOutputs& o
 void ControlLogic::step(const ControlInputs& in, ControlOutputs& out) {
     out.cmdCount = 0;
     out.message = Msg::None;
-    for (uint8_t i = 0; i < 8; i++) out.led[i] = LED_OFF;
+    for (uint8_t i = 0; i < 12; i++) out.led[i] = LED_OFF;
 
     results(in, out);
     trackLauncher(in, out);
     handleAnswer(in);
     handleLaunch(in, out);
     handleMaintenance(in, out);
+    handleDuration(in, out);
     autoPrepare(in, out);
 
     const bool sw_ok = in.switchesValid;
@@ -536,4 +602,12 @@ void ControlLogic::step(const ControlInputs& in, ControlOutputs& out) {
         default: out.led[1] = LED_OFF; break;
     }
     if (rejectFlash_) out.led[1] = LED_FLASH_FAST;
+
+    // L9: the launcher is busy preparing (pulses), off once it is ready to launch; an error behaves like L2.
+    // (Waiting for the driver, the re-arm countdown and a rejected launch are L2 matters: L9 stays off.)
+    switch (out.launcher) {
+        case LauncherStatus::Preparing: out.led[8] = LED_PULSE; break;
+        case LauncherStatus::Error: out.led[8] = LED_FLASH_FAST; break;
+        default: out.led[8] = LED_OFF; break;
+    }
 }

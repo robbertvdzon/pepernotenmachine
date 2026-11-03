@@ -9,13 +9,19 @@ ride, and is a different person each year (the system is used once a year). So t
 do the work; the display is for set-up and for confirming things at the start. Keep everything as simple
 as possible.
 
-## Status (v0.13)
+## Status (v0.16)
 
 Verified on the real hardware: display, encoder, switches, LEDs, BLE scan/select/save/reconnect,
 setup flow, relays/lights, the colors after the byte-order fix, the launcher check overlay,
 the automatic preparation, launch + automatic re-arm (re-arm delay is now 4 s, **not re-tested yet**) and the
 animated home screen, scrolling menus and the Maintenance menu (release, dispense, motor control). Panic works "ok-ish" and still
 has to be defined properly.
+
+**New in v0.16** (not yet run on the hardware): **L9 pulses while the launcher prepares**, goes off when it is ready to launch (L2 on), and flashes fast on a launcher error, like L2. A rejected launch, the check question and the re-arm countdown are not shown on L9.
+
+**New in v0.15** (not yet run on the hardware): *Dispenser time* in the Maintenance menu (read `...26af`, change with the knob, push saves, the value is READ BACK and compared before "time saved" is shown), and the Dispense screen shows how long the forward run took ("DISPENSING 7.4 s", then "last: 7.4 s") to measure a fill time. `ble_link` got an on-demand read (`ble_link_read`). Start-up splash screen: see the TODO (design proposals, nothing built yet).
+
+**New in v0.14** (not yet run on the hardware): *Hold to reverse* on the Dispense screen (write `0x03`, to un-jam the dispenser; stop = `0x00`), and a read-only *Bottom switch* screen in the Maintenance menu (live reading of the switch at the bottom of the launcher, `...26aa`). The launcher has to accept `0x03` on the dispenser control characteristic.
 
 **New in v0.13:** the launcher check asks **"Anything in bucket?"** (Bucket empty / Bucket full / Not sure?) instead of the machine state; both answers prepare the launcher (empty = `0x01` with the dispenser, full = `0x02` without), there is no more "ready without moving" shortcut. Needs the launcher firmware to accept `0x02` on prepare. Not yet run on the hardware.
 
@@ -113,12 +119,14 @@ Menu -> **Maintenance** (title and rows in amber/red: this is not for the ride).
 - **Release bucket** -> confirmation (**Cancel is first**) -> writes `1` to the launch characteristic (`...26b2`) once,
   never retried. It is a real launch of whatever is in the bucket. Refused if the launcher is offline, its state is unknown or it is
   preparing ("launcher busy"). Result: "bucket released" / "release failed".
-- **Dispense** screen: the dispenser runs while the knob is held on the row "Hold to dispense" (write `0x02` = run until `0x00`).
-  The second row is Back (pushing it never dispenses). Status text: starting / DISPENSING / stopping. Safety:
-  the STOP is sent at once when the knob is released, the screen is left (Back button, menu), maintenance ends, the launcher
-  starts moving or the link was interrupted; it is always sent at least twice and repeated every 0.5 s until the dispenser
-  reports `0x00`; "dispenser stuck?" after 3 s without confirmation. After an interruption only a **new press** runs it again.
-  Not accepted within 2 s -> "dispense failed". Refused while the launcher is preparing or the dispenser is already running.
+- **Dispense** screen: rows "Hold to dispense" (write `0x02` = run until `0x00`), "Hold to reverse" (write `0x03` = run backwards
+  until `0x00`, to un-jam the dispenser) and Back (pushing it never dispenses). The row is fixed when the knob goes down (turning
+  while holding changes nothing). Status (starting / DISPENSING / REVERSING / stopping) replaces the hint line. Safety: the STOP is
+  sent at once when the knob is released, the screen is left (Back button, menu), maintenance ends, the launcher starts moving or
+  the link was interrupted; it is always sent at least twice and repeated every 0.5 s until the dispenser reports `0x00`;
+  "dispenser stuck?" after 3 s without confirmation. After an interruption only a **new press** runs it again. Not accepted within
+  2 s -> "dispense failed". Refused while the launcher is preparing or the dispenser is already running. **A change of direction
+  needs the stop confirmed first** ("still stopping"), pressing the same direction again while it stops just runs again.
 - **Motor control** screen: rows "Hold to go up", "Hold to go down", Back (the speeds +512 / -512 are only on the wire). Holding the knob on a row writes the commanded
   speed to the pull motor characteristic (`...26a8`, signed 32-bit big-endian: `+512` = `00 00 02 00`, `-512` = `FF FF FE 00`);
   stop = speed `0` (`00 00 00 00`). The row is fixed when the knob goes down (turning while holding changes nothing). The stop rules
@@ -128,6 +136,15 @@ Menu -> **Maintenance** (title and rows in amber/red: this is not for the ride).
   reversed on the fly; and the motor and the dispenser are never run at the same time. Refused while the launcher is preparing
   or the motor already reports a non-zero speed. The status ("MOTOR RUNNING" / starting / stopping) replaces the hint line.
   There are no end stops in this unit: the operator watches the machine (an elastic band that is over-tensioned makes the motor slip).
+- **Dispenser time** screen: the seconds of the dispense cycle that the launcher uses in a preparation (`...26af`, one byte, 1..60, kept by
+  the launcher). Opening the screen refreshes the reading. Turning the knob changes the value (one click = one second, nothing is sent;
+  the number turns amber with "(unsaved)"), pushing saves: the byte is written, then **read back**, and only a read-back equal to the written
+  value shows "time saved" (else "save failed"; also after 3 s without a read-back). Refused ("launcher busy") while the launcher is preparing
+  and when it is offline; no reading = "--" and nothing can be saved. The Back button leaves without saving. It changes nothing physical, so no
+  check question follows. The Dispense screen shows the forward run time, from the first "running" report to the stop.
+- **Bottom switch** screen (read only, nothing is sent): shows the live state of the switch the launcher uses to see that the
+  bucket reached the bottom (`...26aa`, read + notify: `0x01` PRESSED = "bucket is down", `0x00` RELEASED = "bucket not down";
+  "NO READING" when the link is down or the characteristic is missing). Handy for checking the switch by hand.
 - **After a release, a dispense or a motor run** the machine is in a state the unit cannot know: when maintenance is left the normal
   launcher check question is asked before anything moves (not when you only looked at the menu).
 
@@ -189,7 +206,8 @@ Safety rules (all in `control_logic.cpp`, pure and unit-tested; mutation-tested)
 | L4 / L7 | Decorative lighting / flashing light: on = relay confirmed on, flash = wanted but not confirmed, fast flash = not confirmed after 3 s, off = off |
 | L6 | Panic: on = active, fast flash = active but the switchboard cannot be reached |
 | L8 | Fog: off = machine not connected, flash = heating, on = ready, pulse = fogging, fast flash = fog wanted but impossible |
-| L9..L12 | Reserved, off |
+| L9 | Launcher busy: **pulse = preparing** (from the start of a preparation until it is done), off = ready to launch (and in every other state), fast flash = launcher error (like L2). L2 turns on when L9 turns off. |
+| L10..L12 | Reserved, off |
 
 Each LED can be OFF, ON, FLASH (1 Hz), FLASH_FAST (5 Hz), PULSE, RAMP_UP, RAMP_DOWN (`leds_set_state`).
 
@@ -202,7 +220,7 @@ Each LED can be OFF, ON, FLASH (1 Hz), FLASH_FAST (5 Hz), PULSE, RAMP_UP, RAMP_D
 | `include/ui_strings_en.h`, `ui_strings.h` | ALL display texts in one file, with compile-time length checks; translate by copying to `ui_strings_nl.h` and building with `-D UI_LANG_NL` (needs a branch already present in `ui_strings.h`). Logging stays English |
 | `src/main.cpp`, `src/app.cpp` | `setup()`/`loop()`; init order and one non-blocking pass of the periodic work |
 | `src/control_logic.cpp` | Pure control logic: switches + device states + driver answers -> commands, LEDs, messages |
-| `src/controller.cpp` | Glue: gathers inputs, runs the logic, executes commands via `ble_link_write`, drives L2/L4/L6/L7/L8, stores the launcher belief hint |
+| `src/controller.cpp` | Glue: gathers inputs, runs the logic, executes commands via `ble_link_write`, drives L2/L4/L6/L7/L8/L9, stores the launcher belief hint |
 | `src/ble_link.cpp` | Connection manager: one BLE task keeps both devices connected; queued one-shot writes with results |
 | `src/ble_scanner.cpp` | NimBLE scan; the callback only copies into a locked queue |
 | `src/ble_devices.cpp` | Service UUIDs and the characteristics used per device (the one table to extend) |
@@ -229,7 +247,9 @@ Each LED can be OFF, ON, FLASH (1 Hz), FLASH_FAST (5 Hz), PULSE, RAMP_UP, RAMP_D
 - Writes go through a per-device queue in the BLE task and are executed once; the result can be followed
   (`ble_link_write_state`); never retried there.
 - Launcher characteristics used: preparation state (`...26b1`), prepare (`...26ae`), launch (`...26b2`, also used by *Release bucket*), and the
-  dispenser control (`...26b0`, read/write/notify: `0x01` start, `0x00` stop, `0x02` run until `0x00`; any non-zero reading = dispensing).
+  dispenser control (`...26b0`, read/write/notify: `0x01` start, `0x00` stop, `0x02` run until `0x00`, `0x03` run backwards until `0x00`;
+  any non-zero reading = running), bottom switch (`...26aa`, read/notify: `0x01` pressed, `0x00` released; display only), dispenser time (`...26af`, read/write, one byte of seconds,
+  read at connect and on demand via `ble_link_read`, which travels the same queue as the writes).
   The dispenser duration (`...26af`) is not used by this unit yet.
 - Pull motor (`...26a8`, optional, read/write/notify): signed 32-bit big-endian commanded speed, clamped to `-512..512`; notifications follow
   BLE writes and launcher motor commands. Used only by *Motor control* (any non-zero speed = running).
@@ -286,17 +306,19 @@ Each LED can be OFF, ON, FLASH (1 Hz), FLASH_FAST (5 Hz), PULSE, RAMP_UP, RAMP_D
 - [x] Colors: orange "Launcher", teal "Switchboard", amber/green status, indigo focus highlight, neutral gray cards, no green pixels at rounded corners, no blank lines
 - [ ] Setup flow: scan lists only the chosen kind, first device gets the focus, pick saves + connects, "Scan again" only after the scan, Forget confirms
 - [ ] Both devices on: the check overlay appears; "Not sure" shows the help page and asks again; Back does nothing on the overlay
-- [ ] "Bucket empty" (launcher `0x01`): preparation starts by itself, the dispenser runs at the down -> up switch, L2 pulses, then solid; the band shows spinner, arrows down + bar, padlock, arrows up + bar, rocket
+- [ ] "Bucket empty" (launcher `0x01`): preparation starts by itself, the dispenser runs at the down -> up switch, L2 pulses and **L9 pulses** (L9 off when ready), then L2 solid; the band shows spinner, arrows down + bar, padlock, arrows up + bar, rocket
 - [ ] "Bucket full" (launcher `0x02`): preparation starts by itself, the dispenser does NOT run, the bucket keeps its load and the launch works afterwards; also with the bucket already locked at the bottom (short down phase) and with it hanging at the top
 - [ ] After a launch the automatic preparation fills the bucket again (`0x01`)
 - [x] (2 s version; re-test with 4 s) SW8 when ready: launches once, "LAUNCHED", countdown "re-arming in ..", prepares again after ~4 s, ready again
 - [ ] SW8 when not ready: nothing sent, toast ("not ready yet" ...) + L2 fast flash. Never fires twice for one press
 - [x] **Top of the screen is clean** with both boards offline at power-up (verified on the panel with v0.12.1). Still to see: the toast text is vertically centered in its bar (v0.12.2), also with the fog switch on without a machine.
 - [x] (verified on the panel by the owner) **Motor control** (launcher connected, band slack): holding "up" / "down" moves the motor in the expected direction at the expected speed and stops at once on release and on Back; turning the knob while holding changes nothing; a quick release+press is refused for a moment; unplugging the launcher while it runs stops it (launcher side).
+- [ ] **Dispenser time**: the screen opens with the launcher's current value; turning changes it 1 s per click within 1..60 and sends nothing; pushing saves and shows "time saved" only after the read-back matched; the value is still there after a power cycle of the launcher; a save during a preparation is refused; "Hold to dispense" shows the running time and "last: x.x s".
+- [ ] **Hold to reverse** un-jams / runs the dispenser backwards while held and stops at once on release; pressing "dispense" right after "reverse" is refused for a moment. **Bottom switch** screen follows the switch live when you press it by hand, and shows NO READING with the launcher off.
 - [x] (verified on the panel by the owner) **Maintenance** (launcher connected): the menu scrolls; automation pauses (no prepare starts, SW8 blocked); **Release bucket** asks first, Cancel does nothing, Yes releases the lock; afterwards leaving maintenance asks the check question. **Dispense** runs only while the knob is held and stops at once on release / Back; with the launcher unplugged mid-run it stops on its own (launcher side).
 - [ ] **Home screen on the panel**: colors/animations look right, no tearing or flicker, switches/LEDs/BLE still react immediately while the band animates (watch for stalls), SW8 rocket + 4-3-2-1 countdown, dispenser tile lights while the dispenser runs, fog tile states (needs the machine), toast for a missing switchboard (after 3 s)
 - [ ] Switch the launcher off/on while ready: no question (kept); switch it off during a preparation: asked again
-- [ ] Launcher error (or refused/failed prepare): L2 fast flash + overlay with the error title; fix by hand, answer, preparation retried
+- [ ] Launcher error (or refused/failed prepare): L2 and L9 fast flash + overlay with the error title; fix by hand, answer, preparation retried
 - [ ] Menu -> Check launcher: overlay opens, automation stops until answered
 - [ ] SW4 / SW6 / SW7: log `-> switchboard RELAYS [n 1]`, then `RELAYS = ..`; LEDs flash then solid; siren follows the button
 - [ ] Reconnect the switchboard with SW4 ON: the relay is switched on again by itself
@@ -312,12 +334,25 @@ Everything that is still open, grouped. Items marked **(you)** need a decision o
 - [x] Maintenance menu: Release bucket, Dispense, scrolling menus, toast fix (v0.11, verified on the hardware).
 - [ ] **Review the whole menu structure** now that Maintenance exists: does everything still sit in the right menu (Check launcher, Setup, Maintenance), or must something move?
 - [x] Maintenance: **Motor control** (v0.12, verified on the hardware).
-- [ ] Maintenance, later (not now): **Switch detection** entry (the submenu already scrolls).
-- [ ] Minor: while the toast slides up into view (about 0.2 s) its top edge is briefly drawn wrong on the panel (too fast to photograph; the owner does not mind). Off-target it is clean (`panel_check`), so it is probably tearing from the many small partial flushes while it moves. Options if it ever matters: fewer, coarser slide steps, a fade instead of a slide, or no animation.
+- [x] Maintenance: **Bottom switch** screen and **Hold to reverse** (v0.14, not yet run on the hardware).
+- [ ] Toast (low priority, not changed yet): a photo of the unit shows the toast geometry and text as designed, but the top rows of the first letters can look
+  distorted, and a glitch seen during the 0.2 s slide stays visible afterwards. **Measured off-target: in the steady state the toast area is never re-sent
+  to the panel** (0 flushes/s), so damage done while it slides in is never repaired. LVGL's data is clean (`panel_check`), so the cause is between `flush_cb`
+  and the glass (probably tearing of the many small partial writes while it moves). Options: no slide (one single flush), or keep the slide and force one
+  clean redraw of the toast area when it has arrived, or a fade. 
+- [ ] Display efficiency (found while measuring, not changed yet): the launcher band is flushed ~28 times a second instead of the intended 12, because the progress bar value
+  (1/1000 steps) triggers a redraw every ~25 ms; quantizing it to the bar's pixels (78 steps) would remove ~60 % of the band traffic without any visible change.
+- [ ] **Start-up splash screen** (parked by the owner, to come back to later): full-screen logo ("nut-o-matic" / "peppernut maker"; Dutch "noot-o-maat" / "pepernoten maker"),
+  no tiles and no toast, animated "connecting", shown from power-up until BOTH devices are connected and at least 2 s have passed; the OFFLINE band stays for a device that
+  drops out later. The owner has an example image (Sinterklaas with the nut cannon, big red "nut-o-matic" lettering, "PEPERNOTEN LAUNCHER", "1 (BT) ))) (BT) 2", "Connecting...", "v1.0").
+  My first five concepts (`tools/preview/make_splash_preview.py`: Salvo, The automat, Rooftops, Arcade boot, Minimal orbit) were **rejected: the pixel art is too simplistic
+  and nothing like the example**; next time start from the owner's artwork (static bitmap) and only animate the connection part on top. Behavior still to agree on: skip it when
+  setup is incomplete, the check question comes after it, after 20 s offer "push = continue". Technical: a static RGB565 bitmap in flash (a 160x70 area is ~22 KB).
 - [ ] Optional: understand why a full-frame flush brings the top-line glitch back (tearing? how LovyanGFX handles big `setAddrWindow` + `writePixels` transfers); not needed while partial flushes work.
 - [ ] **(you)** Launcher firmware: stop the dispenser **and the pull motor** by itself when the BLE link drops (the unit also stops them, but cannot when it is dead).
 - [ ] Motor control: decide whether the unit should refuse "down" at some point (no end stop / limit is known to it), or whether the launcher enforces limits.
-- [ ] Dispense: the unit treats any non-zero dispenser value as "running". Confirm what the launcher reports while `0x02` is active.
+- [ ] Dispense: the unit treats any non-zero dispenser value as "running". Confirm what the launcher reports while `0x02` / `0x03` is active.
+- [x] Dispenser time from the Maintenance menu + run time on the Dispense screen (v0.15, not yet run on the hardware).
 
 ### Define / decide (needs the owner)
 - [ ] **SW5 "Automatic mode"**: meant for automatically activating horns/flashlights and such, NOT the launcher: triggers, timings, which relays; implement + tests; light L1. The tile on the home screen stays off until then.
@@ -328,7 +363,7 @@ Everything that is still open, grouped. Items marked **(you)** need a decision o
 - [ ] **Dispenser**: confirm that the launcher starting the dispenser during preparation is the desired final behavior.
 - [ ] **Settings on the TFT**: decide which parameters are adjustable (dispenser duration `...26af`, fog burst duration, ...) and persist them (NVS). A "Settings" entry fits in the menu. Note: the dispenser duration is also used by the automatic cycle.
 - [ ] **Wiring**: set the real relay numbers in `control_config.h` when the equipment is wired (lights, siren, panic bells/horns); decide about the MOSFETs, digital outputs/inputs and analog inputs (unused).
-- [ ] Decide what to do with SW9..SW12 and L9..L12.
+- [ ] Decide what to do with SW9..SW12 and L10..L12 (L9 is now the "launcher preparing" LED).
 - [ ] **Freshness policy**: a value is "current" while the link is up (notifications + read on connect). Decide whether a periodic re-read / staleness timeout is wanted for the launch interlock.
 - [ ] Is the prepare timeout of 90 s and the 3 s "refused" window right for the real launcher? 
 
@@ -369,10 +404,11 @@ Open (see also the TODO list):
 7. Back button (SW1): navigation only, or should it also cancel/stop something?
 8. Which parameters should be adjustable on the TFT (dispenser duration, fog burst duration, ...)?
 9. Which equipment will be on which relay once wired (flashing light, decorative lighting, siren, panic bells/horns)?
-10. What should SW9..SW12 and L9..L12 be used for?
+10. What should SW9..SW12 and L10..L12 be used for?
 11. Is the prepare timeout of 90 s and the 3 s "refused" window right for the real launcher?
 12. Should the pull-motor characteristic (now notifiable) be used, e.g. to show "motor running" or to detect a stuck motor?
 
 ## Design study tools
+`tools/preview/make_splash_preview.py` draws my first (rejected) start-up splash concepts (GIFs + a contact sheet, English or Dutch: `python3 make_splash_preview.py out nl`); only useful as a starting point for the lettering and the badge animation.
 `tools/preview/make_preview.py` (Pillow + Unscii fonts) is the original Python design study of the home screen. It is superseded by
 `src/home_sprites.cpp` (the firmware drawing code, same look) and is no longer kept in sync (e.g. its fog icon is the old one).

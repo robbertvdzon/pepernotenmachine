@@ -35,6 +35,8 @@ enum LauncherChar : uint8_t {
     LCH_PREPARE,
     LCH_LAUNCH,
     LCH_PULL_MOTOR,  // optional: signed 32-bit big-endian speed -512..512 (maintenance only)
+    LCH_BUCKET_SWITCH,  // optional: 0x01 = the switch at the bottom is pressed (bucket down), 0x00 = released
+    LCH_DISPENSER_DURATION,  // optional: one byte, seconds of the dispense cycle (1..60), read + write, saved by the launcher
     LCH_COUNT
 };
 

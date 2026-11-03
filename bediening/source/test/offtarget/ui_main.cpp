@@ -29,7 +29,23 @@ static int s_motor_up_presses = 0, s_motor_down_presses = 0;
 static RunState s_motor = RunState::Idle;
 
 void controller_set_maintenance(bool on) { s_maintenance = on; }
-void controller_set_dispense_held(bool held) { if (held && !s_held) s_held_true_count++; s_held = held; }
+static int s_dispense_dir = 0, s_fwd_presses = 0, s_rev_presses = 0;
+void controller_set_dispense_hold(int8_t dir) {
+    if (dir > 0 && s_dispense_dir <= 0) s_fwd_presses++;
+    if (dir < 0 && s_dispense_dir >= 0) s_rev_presses++;
+    if (dir != 0 && !s_held) s_held_true_count++;
+    s_dispense_dir = dir;
+    s_held = dir != 0;
+}
+static bool s_dur_valid = true, s_dur_busy = false;
+static uint8_t s_dur = 12, s_dur_saved_value = 0;
+static int s_dur_reads = 0, s_dur_saves = 0;
+void controller_request_duration_read() { s_dur_reads++; }
+void controller_request_duration_save(uint8_t v) { s_dur_saves++; s_dur_saved_value = v; }
+bool controller_duration(uint8_t* seconds) { if (seconds) *seconds = s_dur; return s_dur_valid; }
+bool controller_duration_busy() { return s_dur_busy; }
+static bool s_sw_valid = true, s_sw_pressed = false;
+bool controller_bucket_switch(bool* pressed) { if (pressed) *pressed = s_sw_pressed; return s_sw_valid; }
 void controller_request_release() { s_release_count++; }
 RunState controller_dispense_state() { return s_dispense; }
 void controller_set_motor_hold(int8_t dir) {
@@ -164,6 +180,22 @@ int main(int argc, char** argv) {
     dump(dir, "11_dispense_stopping");
     s_dispense = RunState::Idle;
 
+    turn(1);                                 // "Hold to reverse"
+    dump(dir, "11a_dispense_reverse_focused");
+    ui_on_push(true);
+    settle(150);
+    EXPECT(s_dispense_dir == -1 && s_rev_presses == 1 && s_fwd_presses == 1);
+    ui_on_encoder(-1);                       // turning while held must not switch to "Hold to dispense"
+    settle(200);
+    EXPECT(s_dispense_dir == -1 && s_fwd_presses == 1);
+    s_dispense = RunState::Running;
+    settle(300);
+    dump(dir, "11a2_dispense_reversing");
+    ui_on_push(false);
+    settle(150);
+    EXPECT(s_dispense_dir == 0);
+    s_dispense = RunState::Idle;
+    settle(200);
     turn(1);                                 // Back row: pushing it must NOT dispense
     ui_on_push(true);
     settle(150);
@@ -172,7 +204,7 @@ int main(int argc, char** argv) {
     settle(300);                             // -> back on the maintenance screen
     EXPECT(s_maintenance);
     // ---- motor control (from the maintenance screen: Release, Dispense, Motor control, Back)
-    turn(2);                                 // focus: Motor control (whatever row had the focus after coming back)
+    turn(3);                                 // focus: Motor control (Release, Dispense, Dispenser time, Motor control)
     dump(dir, "11b_maintenance_motor_focused");
     push();
     settle(300);
@@ -204,6 +236,69 @@ int main(int argc, char** argv) {
     ui_on_push(false);                       // letting go on the new screen must not click its focused row
     settle(300);
     EXPECT(s_maintenance && s_release_count == 1);   // still the maintenance screen, nothing was activated
+
+    // ---- the bottom switch (read only): menu -> Maintenance -> Bottom switch
+    ui_on_back();                            // -> menu
+    settle(300);
+    turn(1);                                 // Maintenance
+    push();
+    settle(300);
+    // ---- dispenser time: turn = change, push = save
+    turn(2);                                 // Release, Dispense, Dispenser time
+    push();
+    settle(400);
+    EXPECT(s_maintenance && s_dur_reads == 1);   // the reading is refreshed when the screen opens
+    dump(dir, "11j_duration_open");
+    turn(3);                                 // 12 -> 15, nothing is sent by turning
+    EXPECT(s_dur_saves == 0);
+    dump(dir, "11k_duration_unsaved");
+    push();                                  // the only row: save
+    settle(300);
+    EXPECT(s_dur_saves == 1 && s_dur_saved_value == 15);
+    s_dur_busy = true;
+    settle(200);
+    dump(dir, "11l_duration_saving");
+    s_dur_busy = false;
+    s_dur = 15;                              // the launcher reports the new value: saved
+    settle(300);
+    dump(dir, "11m_duration_saved");
+    turn(-100);                              // limited to 1..60
+    push();
+    settle(300);
+    EXPECT(s_dur_saves == 2 && s_dur_saved_value == 1);
+    turn(500);
+    push();
+    settle(300);
+    EXPECT(s_dur_saves == 3 && s_dur_saved_value == 60);
+    s_dur_valid = false;                     // no reading: nothing to change, nothing to save
+    settle(3500);
+    dump(dir, "11n_duration_no_reading");
+    turn(5);
+    push();
+    settle(300);
+    EXPECT(s_dur_saves == 3);
+    s_dur_valid = true;
+    s_dur = 12;
+    ui_on_back();                            // the Back button leaves without saving
+    settle(300);
+    EXPECT(s_maintenance && s_dur_saves == 3);
+    turn(4);                                 // Release, Dispense, Dispenser time, Motor control, Bottom switch
+    dump(dir, "11f_maintenance_switch_focused");
+    push();
+    settle(400);
+    EXPECT(s_maintenance);
+    dump(dir, "11g_switch_released");
+    s_sw_pressed = true;
+    settle(300);
+    dump(dir, "11h_switch_pressed");
+    s_sw_valid = false;
+    settle(300);
+    dump(dir, "11i_switch_no_reading");
+    s_sw_valid = true;
+    s_sw_pressed = false;
+    ui_on_back();                            // -> Maintenance
+    settle(300);
+    EXPECT(s_maintenance);
 
     ui_on_back();                            // -> menu
     settle(300);

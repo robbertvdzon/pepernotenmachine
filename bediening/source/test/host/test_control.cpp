@@ -47,6 +47,10 @@ struct Sim {
         in.releaseResult = Result::None;
         in.dispenseResult = Result::None;
         in.releaseRequested = false;
+        in.durationSave = false;
+        in.durationReadRequest = false;
+        in.durationWriteResult = Result::None;
+        in.durationReadResult = Result::None;
     }
     int count(uint8_t device, uint8_t ci) const {
         int n = 0;
@@ -330,8 +334,10 @@ static void test_answer_empty_prepares_automatically() {
     s.in.prep = 2; s.run(100);
     s.in.prep = 3; s.run(100);
     CHECK(s.out.launcher == LauncherStatus::Preparing && s.out.led[1] == LED_PULSE);
+    CHECK(s.out.led[8] == LED_PULSE);                // L9: busy preparing
     s.in.prep = 0; s.run(100);
     CHECK(s.out.launcher == LauncherStatus::Ready && s.out.led[1] == LED_ON);
+    CHECK(s.out.led[8] == LED_OFF);                  // L9: off when ready to launch
     CHECK(s.out.known == Known::Armed && !s.out.needsConfirm);
     s.run(1000);
     CHECK(s.out.cmdCount == 0);                    // ready: nothing more is sent
@@ -777,7 +783,7 @@ static void test_dispense_hold_and_stop() {
     s.in.dispenserValid = true;
     s.in.dispenser = 0;
     s.run(100);
-    s.in.dispenseHeld = true;
+    s.in.dispenseHold = 1;
     s.run(10);
     const Command* c = s.find(0, LCH_DISPENSER_CONTROL);
     CHECK(c && c->len == 1 && c->data[0] == 2 && c->tag == CmdTag::DispenseStart);
@@ -790,7 +796,7 @@ static void test_dispense_hold_and_stop() {
     s.run(30000);
     CHECK(s.out.dispense == RunState::Running && s.count(0, LCH_DISPENSER_CONTROL) == 0);
 
-    s.in.dispenseHeld = false;                              // knob released
+    s.in.dispenseHold = 0;                              // knob released
     s.run(10);
     c = s.find(0, LCH_DISPENSER_CONTROL);
     CHECK(c && c->data[0] == 0 && c->tag == CmdTag::None);  // stop at once
@@ -817,9 +823,9 @@ static void test_dispense_stop_is_always_sent_twice() {
     s.in.dispenserValid = true;
     s.in.dispenser = 0;
     s.run(100);
-    s.in.dispenseHeld = true;
+    s.in.dispenseHold = 1;
     s.run(10);
-    s.in.dispenseHeld = false;
+    s.in.dispenseHold = 0;
     s.run(10);
     CHECK(s.count(0, LCH_DISPENSER_CONTROL) == 1 && s.find(0, LCH_DISPENSER_CONTROL)->data[0] == 0);
     CHECK(s.out.dispense == RunState::Stopping);       // a stale "0" is not trusted yet
@@ -833,13 +839,13 @@ static void test_dispense_stop_is_always_sent_twice() {
     r.power_up_and_arm();
     r.in.maintenance = true;
     r.in.dispenserValid = true;
-    r.in.dispenseHeld = true;
+    r.in.dispenseHold = 1;
     r.run(10);
     r.in.dispenser = 1;
     r.run(100);
-    r.in.dispenseHeld = false;
+    r.in.dispenseHold = 0;
     r.run(10);
-    r.in.dispenseHeld = true;
+    r.in.dispenseHold = 1;
     r.run(10);
     const Command* c = r.find(0, LCH_DISPENSER_CONTROL);
     CHECK(c && c->data[0] == 2);
@@ -853,7 +859,7 @@ static void test_dispense_stops_for_every_reason() {
     s.power_up_and_arm();
     s.in.maintenance = true;
     s.in.dispenserValid = true;
-    s.in.dispenseHeld = true;
+    s.in.dispenseHold = 1;
     s.run(10);
     s.in.dispenser = 1;
     s.run(100);
@@ -871,7 +877,7 @@ static void test_dispense_stops_for_every_reason() {
     m.power_up_and_arm();
     m.in.maintenance = true;
     m.in.dispenserValid = true;
-    m.in.dispenseHeld = true;
+    m.in.dispenseHold = 1;
     m.run(10);
     m.in.dispenser = 1;
     m.run(100);
@@ -884,12 +890,12 @@ static void test_dispense_stops_for_every_reason() {
     l.power_up_and_arm();
     l.in.maintenance = true;
     l.in.dispenserValid = true;
-    l.in.dispenseHeld = true;
+    l.in.dispenseHold = 1;
     l.run(10);
     l.in.dispenser = 1;
     l.run(100);
     l.in.launcherConnected = false;
-    l.in.dispenseHeld = false;
+    l.in.dispenseHold = 0;
     l.run(10);
     CHECK(l.out.cmdCount == 0 && l.out.dispense == RunState::Stopping);
     l.run(5000);
@@ -903,7 +909,7 @@ static void test_dispense_stops_for_every_reason() {
     h.power_up_and_arm();
     h.in.maintenance = true;
     h.in.dispenserValid = true;
-    h.in.dispenseHeld = true;
+    h.in.dispenseHold = 1;
     h.run(10);
     h.in.dispenser = 1;
     h.run(100);
@@ -918,9 +924,9 @@ static void test_dispense_stops_for_every_reason() {
     h.run(DISPENSE_STOP_RESEND_MS + 10);
     h.run(10);
     CHECK(h.out.dispense == RunState::Idle && h.count(0, LCH_DISPENSER_CONTROL) == 0);
-    h.in.dispenseHeld = false;
+    h.in.dispenseHold = 0;
     h.run(10);
-    h.in.dispenseHeld = true;                                // a new press starts it again
+    h.in.dispenseHold = 1;                                // a new press starts it again
     h.run(10);
     CHECK(h.find(0, LCH_DISPENSER_CONTROL) && h.find(0, LCH_DISPENSER_CONTROL)->data[0] == 2);
 }
@@ -931,7 +937,7 @@ static void test_dispense_problems_are_reported() {
     s.power_up_and_arm();
     s.in.maintenance = true;
     s.in.dispenserValid = true;
-    s.in.dispenseHeld = true;
+    s.in.dispenseHold = 1;
     s.run(10);
     s.run(DISPENSE_START_TIMEOUT_MS);
     CHECK(s.out.message != Msg::DispenseFailed);
@@ -944,7 +950,7 @@ static void test_dispense_problems_are_reported() {
     Sim f;
     f.power_up_and_arm();
     f.in.maintenance = true;
-    f.in.dispenseHeld = true;
+    f.in.dispenseHold = 1;
     f.run(10);
     f.in.dispenseResult = Result::Failed;
     f.run(10);
@@ -955,11 +961,11 @@ static void test_dispense_problems_are_reported() {
     k.power_up_and_arm();
     k.in.maintenance = true;
     k.in.dispenserValid = true;
-    k.in.dispenseHeld = true;
+    k.in.dispenseHold = 1;
     k.run(10);
     k.in.dispenser = 1;
     k.run(100);
-    k.in.dispenseHeld = false;
+    k.in.dispenseHold = 0;
     k.run(10);
     k.run(DISPENSE_STUCK_MS);
     k.run(10);
@@ -974,21 +980,21 @@ static void test_dispense_problems_are_reported() {
     r.in.maintenance = true;
     r.in.dispenserValid = true;
     r.in.dispenser = 1;
-    r.in.dispenseHeld = true;
+    r.in.dispenseHold = 1;
     r.run(10);
     CHECK(r.out.cmdCount == 0 && r.out.message == Msg::MaintBusy && r.out.dispense == RunState::Idle);
-    r.in.dispenseHeld = false;
+    r.in.dispenseHold = 0;
     r.run(10);
     r.in.dispenser = 0;
     r.in.prep = 3;
-    r.in.dispenseHeld = true;
+    r.in.dispenseHold = 1;
     r.run(10);
     CHECK(r.out.cmdCount == 0 && r.out.message == Msg::MaintBusy);
-    r.in.dispenseHeld = false;
+    r.in.dispenseHold = 0;
     r.run(10);
     r.in.prep = 0;
     r.in.launcherConnected = false;
-    r.in.dispenseHeld = true;
+    r.in.dispenseHold = 1;
     r.run(10);
     CHECK(r.out.cmdCount == 0 && r.out.message == Msg::LaunchOffline);
 
@@ -996,7 +1002,7 @@ static void test_dispense_problems_are_reported() {
     Sim o;
     o.power_up_and_arm();
     o.in.dispenserValid = true;
-    o.in.dispenseHeld = true;
+    o.in.dispenseHold = 1;
     o.run(10);
     CHECK(o.out.cmdCount == 0 && o.out.dispense == RunState::Idle);
 }
@@ -1058,7 +1064,7 @@ static void test_motor_never_reverses_on_the_fly() {
     s.run(10);                                               // stopping
     s.in.motorHold = -1;                                     // the other direction pressed at once
     s.run(10);
-    CHECK(s.out.message == Msg::MotorStopping);
+    CHECK(s.out.message == Msg::StillStopping);
     for (int i = 0; i < s.out.cmdCount; i++) CHECK(!(s.out.cmds[i].charIndex == LCH_PULL_MOTOR && s.out.cmds[i].data[0] == 0xFF));
     for (int t = 0; t < 300; t++) {                          // still held, but it was aborted: nothing reverses by itself
         s.run(10);
@@ -1172,11 +1178,249 @@ static void test_motor_stops_for_every_reason_and_reports_problems() {
     x.in.maintenance = true;
     x.in.motorValid = true;
     x.in.dispenserValid = true;
-    x.in.dispenseHeld = true;
+    x.in.dispenseHold = 1;
     x.run(10);                                               // dispenser owns the launcher
     x.in.motorHold = +1;
     x.run(10);
     CHECK(x.out.message == Msg::MaintBusy && x.count(0, LCH_PULL_MOTOR) == 0);
+}
+
+// ------------------------------------------------------------------ dispenser reverse (un-jam)
+static void test_dispense_reverse_and_direction_change() {
+    Sim s;
+    s.power_up_and_arm();
+    s.in.maintenance = true;
+    s.in.dispenserValid = true;
+    s.in.dispenseHold = -1;                                  // "Hold to reverse"
+    s.run(10);
+    const Command* c = s.find(0, LCH_DISPENSER_CONTROL);
+    CHECK(c && c->len == 1 && c->data[0] == 3 && c->tag == CmdTag::DispenseStart);   // 0x03 = reverse, until 0x00
+    CHECK(s.out.dispense == RunState::Starting);
+    s.in.dispenser = 1;
+    s.run(100);
+    CHECK(s.out.dispense == RunState::Running);
+    s.in.dispenseHold = 0;                                   // released: the usual stop (0x00), repeated until reported
+    s.run(10);
+    c = s.find(0, LCH_DISPENSER_CONTROL);
+    CHECK(c && c->len == 1 && c->data[0] == 0 && c->tag == CmdTag::None);
+    CHECK(s.out.dispense == RunState::Stopping);
+
+    s.in.dispenseHold = 1;                                   // the OTHER direction at once: refused until the stop is confirmed
+    s.run(10);
+    CHECK(s.out.message == Msg::StillStopping);
+    for (int t = 0; t < 100; t++) {
+        s.run(10);
+        for (int i = 0; i < s.out.cmdCount; i++) CHECK(s.out.cmds[i].data[0] != 2 && s.out.cmds[i].data[0] != 3);
+    }
+    s.in.dispenseHold = 0;
+    s.in.dispenser = 0;                                      // stop confirmed
+    s.run(DISPENSE_STOP_RESEND_MS + 10);
+    s.run(10);
+    CHECK(s.out.dispense == RunState::Idle);
+    s.in.dispenseHold = 1;                                   // now forward is fine
+    s.run(10);
+    CHECK(s.find(0, LCH_DISPENSER_CONTROL) && s.find(0, LCH_DISPENSER_CONTROL)->data[0] == 2);
+
+    // the same direction pressed again while it stops simply runs again (like before)
+    Sim r;
+    r.power_up_and_arm();
+    r.in.maintenance = true;
+    r.in.dispenserValid = true;
+    r.in.dispenseHold = -1;
+    r.run(10);
+    r.in.dispenser = 1;
+    r.run(100);
+    r.in.dispenseHold = 0;
+    r.run(10);
+    r.in.dispenseHold = -1;
+    r.run(10);
+    CHECK(r.find(0, LCH_DISPENSER_CONTROL) && r.find(0, LCH_DISPENSER_CONTROL)->data[0] == 3);
+}
+
+// ------------------------------------------------------------------ dispenser time (write, read back, compare)
+static void test_dispenser_time_read_and_save() {
+    Sim s;
+    s.power_up_and_arm();
+    s.in.maintenance = true;
+    s.in.durationReadRequest = true;                         // the screen opened
+    s.run(10);
+    const Command* c = s.find(0, LCH_DISPENSER_DURATION);
+    CHECK(c && c->read && c->len == 0 && c->tag == CmdTag::DurationRead);
+    s.in.durationReadRequest = false;
+    s.run(100);
+    CHECK(s.out.cmdCount == 0 && !s.out.durationBusy);
+
+    s.in.durationSave = true;
+    s.in.durationValue = 12;
+    s.run(10);
+    c = s.find(0, LCH_DISPENSER_DURATION);
+    CHECK(c && !c->read && c->len == 1 && c->data[0] == 12 && c->tag == CmdTag::DurationWrite);
+    CHECK(s.out.durationBusy);
+    s.in.durationSave = false;
+    s.run(100);
+    CHECK(s.out.cmdCount == 0 && s.out.durationBusy);        // waiting for the write result, nothing sent twice
+    s.in.durationWriteResult = Result::Ok;
+    s.run(10);
+    c = s.find(0, LCH_DISPENSER_DURATION);
+    CHECK(c && c->read && c->tag == CmdTag::DurationVerify); // the write alone proves nothing: read it back
+    CHECK(s.out.message != Msg::DurationSaved);
+    s.in.durationValid = true;
+    s.in.duration = 12;
+    s.in.durationReadResult = Result::Ok;
+    s.run(10);
+    CHECK(s.out.message == Msg::DurationSaved && !s.out.durationBusy && !msg_is_problem(Msg::DurationSaved));
+    CHECK(s.out.launcher == LauncherStatus::Ready);          // nothing physical changed
+    s.in.maintenance = false;
+    s.run(100);
+    CHECK(!s.out.needsConfirm && s.out.launcher == LauncherStatus::Ready);   // no check question afterwards
+}
+
+static void test_dispenser_time_failures_and_limits() {
+    // read-back differs: NOT saved
+    Sim a;
+    a.power_up_and_arm();
+    a.in.maintenance = true;
+    a.in.durationSave = true;
+    a.in.durationValue = 20;
+    a.run(10);
+    a.in.durationSave = false;
+    a.in.durationWriteResult = Result::Ok;
+    a.run(10);
+    a.in.durationValid = true;
+    a.in.duration = 7;                                       // the launcher kept the old / another value
+    a.in.durationReadResult = Result::Ok;
+    a.run(10);
+    CHECK(a.out.message == Msg::DurationFailed && !a.out.durationBusy);
+
+    // the write fails
+    Sim w;
+    w.power_up_and_arm();
+    w.in.maintenance = true;
+    w.in.durationSave = true;
+    w.in.durationValue = 20;
+    w.run(10);
+    w.in.durationSave = false;
+    w.in.durationWriteResult = Result::Failed;
+    w.run(10);
+    CHECK(w.out.message == Msg::DurationFailed && !w.out.durationBusy && w.count(0, LCH_DISPENSER_DURATION) == 0);
+
+    // no read-back in time
+    Sim t;
+    t.power_up_and_arm();
+    t.in.maintenance = true;
+    t.in.durationSave = true;
+    t.in.durationValue = 20;
+    t.run(10);
+    t.in.durationSave = false;
+    t.in.durationWriteResult = Result::Ok;
+    t.run(10);
+    t.run(DURATION_VERIFY_TIMEOUT_MS - 100);
+    CHECK(t.out.durationBusy);
+    t.run(200);
+    CHECK(t.out.message == Msg::DurationFailed && !t.out.durationBusy);
+
+    // limits 1..60
+    Sim l;
+    l.power_up_and_arm();
+    l.in.maintenance = true;
+    l.in.durationSave = true;
+    l.in.durationValue = 0;
+    l.run(10);
+    CHECK(l.find(0, LCH_DISPENSER_DURATION) && l.find(0, LCH_DISPENSER_DURATION)->data[0] == DURATION_MIN_S);
+    Sim h;
+    h.power_up_and_arm();
+    h.in.maintenance = true;
+    h.in.durationSave = true;
+    h.in.durationValue = 200;
+    h.run(10);
+    CHECK(h.find(0, LCH_DISPENSER_DURATION) && h.find(0, LCH_DISPENSER_DURATION)->data[0] == DURATION_MAX_S);
+
+    // refused: outside maintenance, offline, preparing
+    Sim o;
+    o.power_up_and_arm();
+    o.in.durationSave = true;
+    o.in.durationValue = 10;
+    o.run(10);
+    CHECK(o.out.cmdCount == 0 && !o.out.durationBusy);
+    Sim f;
+    f.power_up_and_arm();
+    f.in.maintenance = true;
+    f.in.launcherConnected = false;
+    f.in.durationSave = true;
+    f.in.durationValue = 10;
+    f.run(10);
+    CHECK(f.out.cmdCount == 0 && f.out.message == Msg::LaunchOffline);
+    Sim p;
+    p.power_up_and_arm();
+    p.in.maintenance = true;
+    p.in.prep = 2;
+    p.in.durationSave = true;
+    p.in.durationValue = 10;
+    p.run(10);
+    CHECK(p.out.cmdCount == 0 && p.out.message == Msg::MaintBusy);
+
+    // one save at a time
+    Sim d;
+    d.power_up_and_arm();
+    d.in.maintenance = true;
+    d.in.durationSave = true;
+    d.in.durationValue = 10;
+    d.run(10);
+    d.in.durationValue = 11;                                 // pressed again while the first one is in progress
+    d.run(10);
+    CHECK(d.out.cmdCount == 0);
+}
+
+// ------------------------------------------------------------------ L9: busy preparing
+static void test_l9_follows_the_preparation() {
+    Sim s;
+    s.run();                                                // power-up: the driver is asked, nothing moves
+    CHECK(s.out.launcher == LauncherStatus::NeedsCheck && s.out.led[8] == LED_OFF);
+    s.in.answer = Answer::Empty;
+    s.run(100);
+    CHECK(s.out.launcher == LauncherStatus::Preparing && s.out.led[8] == LED_PULSE);   // pulses from the start of the preparation
+    s.in.prepareResult = Result::Ok;
+    s.in.prep = 1;
+    s.run(500);
+    CHECK(s.out.led[8] == LED_PULSE);                       // moving down
+    s.in.prep = 2;
+    s.run(500);
+    CHECK(s.out.led[8] == LED_PULSE);                       // unwinding
+    s.in.prep = 3;
+    s.run(500);
+    CHECK(s.out.led[8] == LED_PULSE);
+    s.in.prep = 0;
+    s.run(500);
+    CHECK(s.out.launcher == LauncherStatus::Ready && s.out.led[8] == LED_OFF && s.out.led[1] == LED_ON);   // ready: L9 off, L2 on
+
+    // a launch: the re-arm countdown is not "preparing" (L9 off), the next preparation pulses again
+    s.in.launchPressed = true;
+    s.run(100);
+    CHECK(s.out.led[8] == LED_OFF && s.out.led[1] != LED_OFF);
+    s.in.launchResult = Result::Ok;
+    s.run(REARM_DELAY_MS / 2);
+    CHECK(s.out.launcher == LauncherStatus::Rearming && s.out.led[8] == LED_OFF);
+    s.run(REARM_DELAY_MS);
+    CHECK(s.out.launcher == LauncherStatus::Preparing && s.out.led[8] == LED_PULSE);
+
+    // an error behaves like L2 (fast flash), also when the check overlay is up; a rejected launch is L2 only
+    Sim e;
+    e.in.prep = 4;
+    e.run();
+    CHECK(e.out.launcher == LauncherStatus::Error && e.out.led[1] == LED_FLASH_FAST && e.out.led[8] == LED_FLASH_FAST);
+    Sim r;
+    r.power_up_and_arm();
+    r.in.launchPressed = true;
+    r.in.maintenance = true;                                // rejected (maintenance blocks it)
+    r.run(100);
+    CHECK(r.out.led[1] == LED_FLASH_FAST && r.out.led[8] == LED_OFF);
+
+    // offline / unknown: off; the other LEDs are not touched
+    Sim o;
+    o.in.launcherConnected = false;
+    o.run();
+    CHECK(o.out.launcher == LauncherStatus::Offline && o.out.led[8] == LED_OFF);
+    for (int i = 9; i < 12; i++) CHECK(o.out.led[i] == LED_OFF);
 }
 
 int main() {
@@ -1212,12 +1456,16 @@ int main() {
     test_dispense_stop_is_always_sent_twice();
     test_dispense_stops_for_every_reason();
     test_dispense_problems_are_reported();
+    test_dispense_reverse_and_direction_change();
+    test_dispenser_time_read_and_save();
+    test_l9_follows_the_preparation();
+    test_dispenser_time_failures_and_limits();
     test_motor_start_stop_payloads();
     test_motor_never_reverses_on_the_fly();
     test_motor_stops_for_every_reason_and_reports_problems();
 
     if (failures == 0) {
-        std::printf("ALL CONTROL TESTS PASSED (35 tests)\n");
+        std::printf("ALL CONTROL TESTS PASSED (39 tests)\n");
         return 0;
     }
     std::printf("%d CHECK(S) FAILED\n", failures);

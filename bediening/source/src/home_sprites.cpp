@@ -348,6 +348,32 @@ void drawTiles(const Surface& s, const TileState* tiles, uint32_t now_ms) {
     }
 }
 
+void drawBigNumber(const Surface& s, int value, uint32_t color) {
+    fill(s, BG);
+    char txt[4] = {0, 0, 0, 0};
+    int n = 0;
+    if (value < 0) {
+        txt[n++] = '-';
+        txt[n++] = '-';
+    } else {
+        if (value >= 100) value = 99;
+        if (value >= 10) txt[n++] = static_cast<char>('0' + value / 10);
+        txt[n++] = static_cast<char>('0' + value % 10);
+    }
+    const int digit_w = 20, gap = 4;
+    const int total = n * digit_w + (n - 1) * gap;
+    const int x0 = (s.w - total) / 2, y0 = (s.h - 28) / 2;
+    for (int i = 0; i < n; i++) {
+        if (txt[i] == '-') rect(s, x0 + i * (digit_w + gap) + 2, y0 + 12, x0 + i * (digit_w + gap) + digit_w - 3, y0 + 15, color);
+        else glyph(s, x0 + i * (digit_w + gap), y0, txt[i], 4, color);
+    }
+    const uint32_t arrow = mix(BG, color, 150);
+    const Pt left[] = {{(int16_t)(x0 - 14), (int16_t)(s.h / 2)}, {(int16_t)(x0 - 6), (int16_t)(s.h / 2 - 8)}, {(int16_t)(x0 - 6), (int16_t)(s.h / 2 + 8)}};
+    const Pt right[] = {{(int16_t)(x0 + total + 14), (int16_t)(s.h / 2)}, {(int16_t)(x0 + total + 6), (int16_t)(s.h / 2 - 8)}, {(int16_t)(x0 + total + 6), (int16_t)(s.h / 2 + 8)}};
+    polygon(s, left, 3, arrow);
+    polygon(s, right, 3, arrow);
+}
+
 void drawToast(const Surface& s, ToastLevel level) {
     const uint32_t col = level == ToastLevel::Error ? ERRC : WARN;
     fill(s, BG);

@@ -123,11 +123,22 @@ void drain_commands(Link& l) {
     WriteCmd c;
     while (xQueueReceive(l.cmdq, &c, 0) == pdTRUE) {
         bool ok = false;
-        if (up && c.ci < LINK_MAX_CHARS && l.chr[c.ci]) ok = l.chr[c.ci]->writeValue(c.data, c.len, true);
+        const bool is_read = (c.len == 0);  // a queued read (ble_link_read) travels the same queue, so it comes after earlier writes
+        if (up && c.ci < LINK_MAX_CHARS && l.chr[c.ci]) {
+            if (is_read) {
+                NimBLEAttValue v = l.chr[c.ci]->canRead() ? l.chr[c.ci]->readValue() : NimBLEAttValue();
+                if (v.size() > 0) {
+                    store_value(index_of(l.kind), c.ci, v.data(), v.size());
+                    ok = true;
+                }
+            } else {
+                ok = l.chr[c.ci]->writeValue(c.data, c.len, true);
+            }
+        }
         set_write_state(c.seq, ok ? WriteState::Ok : WriteState::Failed);
         uint8_t count = 0;
         const CharSpec* specs = ble_char_specs(l.kind, count);
-        LOGI(TAG, "%-11s write %s: %s", device_kind_name(l.kind), c.ci < count ? specs[c.ci].name : "?",
+        LOGI(TAG, "%-11s %s %s: %s", device_kind_name(l.kind), is_read ? "read" : "write", c.ci < count ? specs[c.ci].name : "?",
              ok ? "ok" : "FAILED");
     }
 }
@@ -393,6 +404,29 @@ uint32_t ble_link_write(DeviceKind kind, uint8_t char_index, const uint8_t* data
     c.ci = char_index;
     c.len = len;
     memcpy(c.data, data, len);
+    portENTER_CRITICAL(&link_mux);
+    c.seq = next_seq++;
+    if (next_seq == 0) next_seq = 1;
+    write_ring[c.seq % WRITE_RING].seq = c.seq;
+    write_ring[c.seq % WRITE_RING].state = WriteState::Pending;
+    portEXIT_CRITICAL(&link_mux);
+
+    if (xQueueSend(l.cmdq, &c, 0) != pdTRUE) {
+        set_write_state(c.seq, WriteState::Failed);
+        return 0;
+    }
+    return c.seq;
+}
+
+uint32_t ble_link_read(DeviceKind kind, uint8_t char_index) {
+    if (!started || char_index >= LINK_MAX_CHARS) return 0;
+    if (kind != DeviceKind::Launcher && kind != DeviceKind::Switchboard) return 0;
+    Link& l = links[index_of(kind)];
+    if (!l.cmdq || ble_link_state(kind) != LinkState::Connected) return 0;
+
+    WriteCmd c;
+    c.ci = char_index;
+    c.len = 0;  // 0 bytes = read
     portENTER_CRITICAL(&link_mux);
     c.seq = next_seq++;
     if (next_seq == 0) next_seq = 1;

@@ -11,7 +11,9 @@
 #include "controller.h"
 #include "device_store.h"
 #include "fonts.h"
+#include "gfx.h"
 #include "home_model.h"
+#include "home_sprites.h"
 #include "link_state.h"
 #include "ui_compat.h"
 #include "ui_home.h"
@@ -37,7 +39,8 @@ constexpr int INFO_Y = TITLE_Y + UI_FONT_NORMAL_H + 2;  // small info line under
 constexpr int MENU_Y = INFO_Y + UI_FONT_SMALL_H + 5;    // first menu row
 constexpr int MENU_LIST_TOP = TITLE_Y + UI_FONT_NORMAL_H + 5;  // scrolling menu list (no info line)
 constexpr int MENU_LIST_HEIGHT = DISPLAY_HEIGHT - SAFE_BOTTOM - MENU_LIST_TOP;
-constexpr int MAINT_STATUS_Y = 92;  // status text on the dispense screen
+constexpr int SWITCH_BIG_Y = 48;    // reading on the bottom switch screen
+constexpr int SWITCH_SMALL_Y = 70;
 constexpr int SCAN_ROW_H = 28;                          // two-line device row
 constexpr int SCAN_LIST_TOP = INFO_Y + UI_FONT_SMALL_H + 3;
 constexpr int SCAN_LIST_HEIGHT = DISPLAY_HEIGHT - SAFE_BOTTOM - SCAN_LIST_TOP;
@@ -65,11 +68,11 @@ static_assert(CHECK_ROW_Y + 3 * ROW_H + 2 * CHECK_ROW_GAP <= DISPLAY_HEIGHT - SA
 static_assert(HELP_OK_Y + ROW_H <= DISPLAY_HEIGHT - SAFE_BOTTOM, "check help page does not fit");
 static_assert(MENU_Y + 3 * ROW_H + 2 * ROW_GAP <= DISPLAY_HEIGHT - SAFE_BOTTOM, "three setup / device rows do not fit");
 static_assert(MENU_LIST_HEIGHT >= 3 * ROW_H + 2 * ROW_GAP, "the scrolling menu must show at least three rows");
-static_assert(MENU_Y + 2 * (ROW_H + ROW_GAP) + ROW_H <= MAINT_STATUS_Y + 2 * ROW_H, "dispense screen layout");
+static_assert(SWITCH_SMALL_Y + UI_FONT_SMALL_H + 2 <= MENU_Y + 2 * (ROW_H + ROW_GAP), "bottom switch screen layout");
 static_assert(SCAN_LIST_HEIGHT >= SCAN_ROW_H * 2, "scan list too short for two device rows");
 
 // ================================================================== state
-enum class Screen : uint8_t { Home, Menu, Setup, Device, Scan, Confirm, Check, CheckHelp, Maintenance, ConfirmRelease, Dispense, Motor };
+enum class Screen : uint8_t { Home, Menu, Setup, Device, Scan, Confirm, Check, CheckHelp, Maintenance, ConfirmRelease, Dispense, Motor, Switch, Duration };
 
 struct NavEntry {
     Screen screen;
@@ -103,6 +106,9 @@ enum Action : intptr_t {
     ACT_MAINT_RELEASE,
     ACT_MAINT_DISPENSE,
     ACT_MAINT_MOTOR,
+    ACT_MAINT_SWITCH,
+    ACT_MAINT_DURATION,
+    ACT_DURATION_SAVE,
     ACT_RELEASE_YES,
     ACT_ANS_EMPTY,
     ACT_ANS_FULL,
@@ -366,11 +372,63 @@ lv_obj_t* build_menu() {
 // ---- maintenance: pauses all automation (the logic knows through controller_set_maintenance)
 lv_obj_t* maint_info = nullptr;    // info line: hint, or the latest message
 lv_obj_t* dispense_row = nullptr;  // the knob must be held on this row
-lv_obj_t* dispense_status = nullptr;
+lv_obj_t* dispense_reverse_row = nullptr;
+lv_obj_t* switch_big = nullptr;    // bottom switch screen: reading and what it means
+lv_obj_t* switch_small = nullptr;
 lv_obj_t* motor_up_row = nullptr;    // hold-to-run rows of the motor screen
 lv_obj_t* motor_down_row = nullptr;
+RunState prev_dispense = RunState::Idle;  // for the run time shown on the dispense screen
+uint32_t run_since = 0;
+uint32_t last_run_ms = 0;
+bool last_run_valid = false;
+bool run_was_forward = false;
 lv_obj_t* hold_row = nullptr;        // the hold-to-run row the knob went down on (stays the same until it is released)
 bool push_was_down = false;
+
+// ---- dispenser time: turn = change, push = save (the Back button leaves without saving)
+constexpr int DURATION_NUM_Y = 34;  // big number (160x40 canvas)
+constexpr int DURATION_UNIT_Y = 76;
+alignas(64) uint16_t duration_buf[160 * 40];
+const gfx::Surface duration_surf = {duration_buf, 160, 40};
+lv_obj_t* duration_cv = nullptr;
+lv_obj_t* duration_unit = nullptr;
+int duration_edit = 0;           // what the knob has set (seconds)
+uint8_t duration_saved = 0;      // what the launcher reports
+bool duration_valid = false;
+bool duration_dirty = false;     // the knob changed it since the last sync
+bool duration_drawn = false;
+int duration_drawn_value = -2;
+uint32_t duration_open_ms = 0;
+
+// One click = one second, limited to the launcher's 1..60.
+void duration_turn(int32_t diff) {
+    if (!duration_valid) return;  // nothing known to change yet
+    int v = duration_edit + diff;
+    if (v < DURATION_MIN_S) v = DURATION_MIN_S;
+    if (v > DURATION_MAX_S) v = DURATION_MAX_S;
+    if (v != duration_edit) {
+        duration_edit = v;
+        duration_dirty = true;
+    }
+}
+
+lv_obj_t* build_duration() {
+    lv_obj_t* scr = make_screen(STR_DURATION_TITLE, ui_color::LAUNCHER);
+    maint_info = make_info(scr, STR_DURATION_HINT);
+    duration_cv = lv_canvas_create(scr);
+    lv_canvas_set_buffer(duration_cv, duration_buf, 160, 40, LV_COLOR_FORMAT_RGB565);
+    lv_obj_set_pos(duration_cv, 0, DURATION_NUM_Y);
+    duration_unit = lv_label_create(scr);
+    lv_obj_set_style_text_font(duration_unit, UI_FONT_SMALL, LV_PART_MAIN);
+    lv_label_set_text(duration_unit, "");
+    make_menu_row(scr, MENU_Y + 2 * (ROW_H + ROW_GAP), STR_DURATION_SAVE, nullptr, 0, ui_color::OK, ACT_DURATION_SAVE);
+    duration_valid = false;
+    duration_dirty = false;
+    duration_drawn = false;
+    duration_open_ms = last_now;
+    controller_request_duration_read();  // refresh the reading (it may have been changed by another client)
+    return scr;
+}
 
 lv_obj_t* build_maintenance() {
     lv_obj_t* scr = make_screen(STR_MAINT_TITLE, ui_color::WARNING);
@@ -378,7 +436,9 @@ lv_obj_t* build_maintenance() {
     cur_list = make_list(scr, SCAN_LIST_TOP, ROW_GAP);
     make_menu_row(cur_list, -1, STR_MAINT_RELEASE, nullptr, 0, ui_color::ERROR, ACT_MAINT_RELEASE);
     make_menu_row(cur_list, -1, STR_MAINT_DISPENSE, nullptr, 0, ui_color::LAUNCHER, ACT_MAINT_DISPENSE);
+    make_menu_row(cur_list, -1, STR_MAINT_DURATION, nullptr, 0, ui_color::LAUNCHER, ACT_MAINT_DURATION);
     make_menu_row(cur_list, -1, STR_MAINT_MOTOR, nullptr, 0, ui_color::LAUNCHER, ACT_MAINT_MOTOR);
+    make_menu_row(cur_list, -1, STR_MAINT_SWITCH, nullptr, 0, ui_color::LAUNCHER, ACT_MAINT_SWITCH);
     make_menu_row(cur_list, -1, STR_BACK, nullptr, 0, ui_color::TEXT_MUTED, ACT_BACK);
     return scr;
 }
@@ -404,10 +464,21 @@ lv_obj_t* build_dispense() {
     lv_obj_t* scr = make_screen(STR_DISPENSE_TITLE, ui_color::LAUNCHER);
     maint_info = make_info(scr, STR_DISPENSE_HINT);
     dispense_row = make_menu_row(scr, MENU_Y, STR_DISPENSE_ROW, nullptr, 0, ui_color::LAUNCHER, ACT_NONE);
-    make_menu_row(scr, MENU_Y + ROW_H + ROW_GAP, STR_BACK, nullptr, 0, ui_color::TEXT_MUTED, ACT_BACK);
-    dispense_status = lv_label_create(scr);
-    lv_label_set_text(dispense_status, "");
-    lv_obj_align(dispense_status, LV_ALIGN_TOP_MID, 0, MAINT_STATUS_Y);
+    dispense_reverse_row = make_menu_row(scr, MENU_Y + ROW_H + ROW_GAP, STR_DISPENSE_REVERSE, nullptr, 0, ui_color::LAUNCHER, ACT_NONE);
+    make_menu_row(scr, MENU_Y + 2 * (ROW_H + ROW_GAP), STR_BACK, nullptr, 0, ui_color::TEXT_MUTED, ACT_BACK);
+    return scr;
+}
+
+// Read-only: the switch the launcher uses to see that the bucket reached the bottom.
+lv_obj_t* build_switch() {
+    lv_obj_t* scr = make_screen(STR_SWITCH_TITLE, ui_color::LAUNCHER);
+    maint_info = make_info(scr, STR_SWITCH_HINT);
+    switch_big = lv_label_create(scr);
+    lv_label_set_text(switch_big, "");
+    switch_small = lv_label_create(scr);
+    lv_obj_set_style_text_font(switch_small, UI_FONT_SMALL, LV_PART_MAIN);
+    lv_label_set_text(switch_small, "");
+    make_menu_row(scr, MENU_Y + 2 * (ROW_H + ROW_GAP), STR_BACK, nullptr, 0, ui_color::TEXT_MUTED, ACT_BACK);
     return scr;
 }
 
@@ -449,10 +520,17 @@ void enter(Screen s, DeviceKind k) {
     cur_list = nullptr;
     maint_info = nullptr;
     dispense_row = nullptr;
-    dispense_status = nullptr;
+    dispense_reverse_row = nullptr;
+    switch_big = nullptr;
+    switch_small = nullptr;
+    duration_cv = nullptr;
+    duration_unit = nullptr;
     motor_up_row = nullptr;
     motor_down_row = nullptr;
     hold_row = nullptr;
+    prev_dispense = RunState::Idle;
+    last_run_valid = false;
+    run_was_forward = false;
     switch (s) {
         case Screen::Home: scr = home_obj; break;
         case Screen::Menu: scr = build_menu(); break;
@@ -466,6 +544,8 @@ void enter(Screen s, DeviceKind k) {
         case Screen::ConfirmRelease: scr = build_confirm_release(); break;
         case Screen::Dispense: scr = build_dispense(); break;
         case Screen::Motor: scr = build_motor(); break;
+        case Screen::Switch: scr = build_switch(); break;
+        case Screen::Duration: scr = build_duration(); break;
     }
     lv_obj_t* old = cur_obj;
     screen_since = last_now;
@@ -669,6 +749,11 @@ void run_action(intptr_t a) {
         case ACT_MAINT_RELEASE: go(Screen::ConfirmRelease, DeviceKind::Unknown); break;
         case ACT_MAINT_DISPENSE: go(Screen::Dispense, DeviceKind::Unknown); break;
         case ACT_MAINT_MOTOR: go(Screen::Motor, DeviceKind::Unknown); break;
+        case ACT_MAINT_SWITCH: go(Screen::Switch, DeviceKind::Unknown); break;
+        case ACT_MAINT_DURATION: go(Screen::Duration, DeviceKind::Unknown); break;
+        case ACT_DURATION_SAVE:
+            if (duration_valid && !controller_duration_busy()) controller_request_duration_save(static_cast<uint8_t>(duration_edit));
+            break;
         case ACT_RELEASE_YES:
             controller_request_release();  // the result shows on the maintenance screen
             go_back();
@@ -684,7 +769,8 @@ void run_action(intptr_t a) {
 
 // ============================================================ maintenance screens
 bool in_maintenance() {
-    return cur_id == Screen::Maintenance || cur_id == Screen::ConfirmRelease || cur_id == Screen::Dispense || cur_id == Screen::Motor;
+    return cur_id == Screen::Maintenance || cur_id == Screen::ConfirmRelease || cur_id == Screen::Dispense || cur_id == Screen::Motor ||
+           cur_id == Screen::Switch || cur_id == Screen::Duration;
 }
 
 void set_label_if_changed(lv_obj_t* l, const char* text, uint32_t color) {
@@ -692,42 +778,103 @@ void set_label_if_changed(lv_obj_t* l, const char* text, uint32_t color) {
     lv_obj_set_style_text_color(l, lv_color_hex(color), LV_PART_MAIN);
 }
 
-// The info line shows the hint, or the latest message (a result or a problem) for a few seconds.
-// The dispense screen also shows what the dispenser is doing.
+// The info line shows the hint, or the latest message (a result or a problem) for a few seconds. On the hold-to-run
+// screens (Dispense, Motor control) it shows what is running instead of the hint. The bottom switch screen shows
+// the live reading.
 void maint_update(uint32_t now) {
-    if (maint_info) {
-        const char* hint = cur_id == Screen::Maintenance ? STR_MAINT_INFO
-                           : cur_id == Screen::ConfirmRelease ? STR_RELEASE_INFO
-                           : cur_id == Screen::Motor ? STR_MOTOR_HINT : STR_DISPENSE_HINT;
-        uint32_t at = 0;
-        const Msg m = controller_last_message(&at);
-        const bool fresh = m != Msg::None && static_cast<int32_t>(at - screen_since) >= 0 &&
-                           static_cast<uint32_t>(now - at) < MESSAGE_SHOW_MS;
-        const RunState motor = cur_id == Screen::Motor ? controller_motor_state() : RunState::Idle;
-        if (!fresh && motor != RunState::Idle) {  // the motor screen has no room for a status line: it replaces the hint
-            set_label_if_changed(maint_info, motor == RunState::Running ? STR_MOTOR_RUNNING
-                                             : motor == RunState::Starting ? STR_DISPENSE_STARTING : STR_DISPENSE_STOPPING,
-                                 motor == RunState::Running ? ui_color::OK : ui_color::WARNING);
-        } else if (!fresh) {
-            set_label_if_changed(maint_info, hint, ui_color::TEXT_MUTED);
-        } else {
-            const bool bad = m == Msg::ReleaseFailed || m == Msg::DispenseFailed || m == Msg::DispenseStuck ||
-                             m == Msg::MotorFailed || m == Msg::MotorStuck;
-            set_label_if_changed(maint_info, msg_text(m), !msg_is_problem(m) ? ui_color::OK : (bad ? ui_color::ERROR : ui_color::WARNING));
+    if (duration_cv) {
+        uint8_t v = 0;
+        duration_valid = controller_duration(&v);
+        if (duration_valid) {
+            duration_saved = v;
+            if (!duration_dirty || duration_edit == v) {  // follow the launcher until the knob changed the value
+                duration_edit = v;
+                duration_dirty = false;
+            }
         }
+        const bool busy = controller_duration_busy();
+        const bool unsaved = duration_valid && duration_dirty && duration_edit != duration_saved;
+        const int shown = duration_valid ? duration_edit : -1;
+        const int sig = shown * 4 + (unsaved ? 1 : 0) + (busy ? 2 : 0);
+        if (!duration_drawn || sig != duration_drawn_value) {
+            duration_drawn = true;
+            duration_drawn_value = sig;
+            sprites::drawBigNumber(duration_surf, shown, unsaved ? ui_color::WARNING : ui_color::TEXT);
+            lv_obj_invalidate(duration_cv);
+        }
+        const bool give_up = static_cast<uint32_t>(now - duration_open_ms) > 3000;
+        set_label_if_changed(duration_unit,
+                             busy ? STR_DURATION_SAVING : (!duration_valid ? (give_up ? STR_DURATION_NONE : STR_DURATION_READING)
+                                                                           : (unsaved ? STR_DURATION_UNSAVED : STR_DURATION_UNIT)),
+                             !duration_valid && give_up ? ui_color::ERROR : (unsaved || busy ? ui_color::WARNING : ui_color::TEXT_MUTED));
+        lv_obj_align(duration_unit, LV_ALIGN_TOP_MID, 0, DURATION_UNIT_Y);
     }
-    if (dispense_status) {
-        switch (controller_dispense_state()) {
-            case RunState::Starting: set_label_if_changed(dispense_status, STR_DISPENSE_STARTING, ui_color::WARNING); break;
-            case RunState::Running: set_label_if_changed(dispense_status, STR_DISPENSE_RUNNING, ui_color::OK); break;
-            case RunState::Stopping: set_label_if_changed(dispense_status, STR_DISPENSE_STOPPING, ui_color::WARNING); break;
-            default: set_label_if_changed(dispense_status, "", ui_color::TEXT); break;
+    if (switch_big) {
+        bool pressed = false;
+        const bool valid = controller_bucket_switch(&pressed);
+        set_label_if_changed(switch_big, !valid ? STR_SWITCH_NO_READING : (pressed ? STR_SWITCH_PRESSED : STR_SWITCH_RELEASED),
+                             !valid ? ui_color::ERROR : (pressed ? ui_color::OK : ui_color::TEXT));
+        set_label_if_changed(switch_small, !valid ? STR_SWITCH_NONE_INFO : (pressed ? STR_SWITCH_PRESSED_INFO : STR_SWITCH_RELEASED_INFO),
+                             ui_color::TEXT_MUTED);
+        lv_obj_align(switch_big, LV_ALIGN_TOP_MID, 0, SWITCH_BIG_Y);
+        lv_obj_align(switch_small, LV_ALIGN_TOP_MID, 0, SWITCH_SMALL_Y);
+    }
+    if (!maint_info) return;
+    const char* hint = cur_id == Screen::Maintenance ? STR_MAINT_INFO
+                       : cur_id == Screen::ConfirmRelease ? STR_RELEASE_INFO
+                       : cur_id == Screen::Motor ? STR_MOTOR_HINT
+                       : cur_id == Screen::Switch ? STR_SWITCH_HINT
+                       : cur_id == Screen::Duration ? STR_DURATION_HINT : STR_DISPENSE_HINT;
+    uint32_t at = 0;
+    const Msg m = controller_last_message(&at);
+    const bool fresh = m != Msg::None && static_cast<int32_t>(at - screen_since) >= 0 && static_cast<uint32_t>(now - at) < MESSAGE_SHOW_MS;
+    RunState run = RunState::Idle;
+    const char* running_text = STR_DISPENSE_RUNNING;
+    if (cur_id == Screen::Dispense) {  // time the forward run from the first "running" report to the stop
+        const RunState d = controller_dispense_state();
+        const bool forward = hold_row != nullptr && hold_row == dispense_row;
+        if (d == RunState::Running && prev_dispense != RunState::Running) run_since = now;
+        if (prev_dispense == RunState::Running && d != RunState::Running && run_was_forward) {
+            last_run_ms = static_cast<uint32_t>(now - run_since);
+            last_run_valid = true;
         }
-        lv_obj_align(dispense_status, LV_ALIGN_TOP_MID, 0, MAINT_STATUS_Y);
+        if (d == RunState::Running) run_was_forward = forward || (run_was_forward && prev_dispense == RunState::Running);
+        prev_dispense = d;
+    }
+    if (cur_id == Screen::Motor) {
+        run = controller_motor_state();
+        running_text = STR_MOTOR_RUNNING;
+    } else if (cur_id == Screen::Dispense) {
+        run = controller_dispense_state();
+        running_text = (hold_row != nullptr && hold_row == dispense_reverse_row) ? STR_DISPENSE_REVERSING : STR_DISPENSE_RUNNING;
+    }
+    if (fresh) {
+        const bool bad = m == Msg::ReleaseFailed || m == Msg::DispenseFailed || m == Msg::DispenseStuck ||
+                         m == Msg::MotorFailed || m == Msg::MotorStuck || m == Msg::DurationFailed;
+        set_label_if_changed(maint_info, msg_text(m), !msg_is_problem(m) ? ui_color::OK : (bad ? ui_color::ERROR : ui_color::WARNING));
+    } else if (run != RunState::Idle) {
+        char text[24];
+        const char* shown = run == RunState::Running ? running_text : (run == RunState::Starting ? STR_DISPENSE_STARTING : STR_DISPENSE_STOPPING);
+        if (cur_id == Screen::Dispense && run == RunState::Running) {  // how long it has been running, to measure a fill time
+            const uint32_t ms = static_cast<uint32_t>(now - run_since);
+            snprintf(text, sizeof(text), "%s %lu.%lu s", running_text, static_cast<unsigned long>(ms / 1000), static_cast<unsigned long>((ms % 1000) / 100));
+            shown = text;
+        }
+        set_label_if_changed(maint_info, shown, run == RunState::Running ? ui_color::OK : ui_color::WARNING);
+    } else if (cur_id == Screen::Dispense && last_run_valid) {
+        char text[24];
+        snprintf(text, sizeof(text), "%s: %lu.%lu s", STR_DISPENSE_LAST, static_cast<unsigned long>(last_run_ms / 1000), static_cast<unsigned long>((last_run_ms % 1000) / 100));
+        set_label_if_changed(maint_info, text, ui_color::TEXT);
+    } else {
+        set_label_if_changed(maint_info, hint, ui_color::TEXT_MUTED);
     }
 }
 
 void encoder_read(lv_indev_t*, lv_indev_data_t* data) {
+    if (cur_id == Screen::Duration && pending_diff != 0) {  // turning changes the value here, it never moves the focus
+        duration_turn(pending_diff);
+        pending_diff = 0;
+    }
     data->enc_diff = static_cast<int16_t>(pending_diff);
     pending_diff = 0;
     // The home screen has nothing to click and is static (turning the knob does nothing there);
@@ -788,10 +935,10 @@ void ui_update(uint32_t now) {
         hold_row = nullptr;
     } else if (!push_was_down) {
         lv_obj_t* f = lv_group_get_focused(group);
-        hold_row = (f && (f == dispense_row || f == motor_up_row || f == motor_down_row)) ? f : nullptr;
+        hold_row = (f && (f == dispense_row || f == dispense_reverse_row || f == motor_up_row || f == motor_down_row)) ? f : nullptr;
     }
     push_was_down = push_down;
-    controller_set_dispense_held(cur_id == Screen::Dispense && hold_row != nullptr && hold_row == dispense_row);
+    controller_set_dispense_hold(cur_id == Screen::Dispense && hold_row != nullptr ? (hold_row == dispense_row ? 1 : (hold_row == dispense_reverse_row ? -1 : 0)) : 0);
     controller_set_motor_hold(cur_id == Screen::Motor && hold_row != nullptr ? (hold_row == motor_up_row ? 1 : (hold_row == motor_down_row ? -1 : 0)) : 0);
     if (in_maintenance()) maint_update(now);
 

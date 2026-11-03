@@ -41,9 +41,13 @@
 //    confirmation first). One-shot, never retried. Needs a connected launcher that is not preparing.
 //  * "Motor control" runs the pull motor by hand: speed +512 (up) / -512 (down) while the knob is held on that row,
 //    stop = speed 0. Same safe-stop rules as the dispenser; a new press is refused until the previous stop is confirmed.
-//  * "Dispense" runs the dispenser (write 0x02 = until 0x00) while the knob is held. The STOP is the
+//  * "Dispense" runs the dispenser (write 0x02 = until 0x00) while the knob is held on "dispense"; "reverse" (write 0x03,
+//    until 0x00) un-jams it. A direction change needs the stop confirmed first, like the motor. The STOP is the
 //    safe direction: when the knob is released, the screen is left, maintenance ends or the launcher
 //    starts moving, 0x00 is sent at least twice and repeated until the dispenser reports "stopped".
+//  * "Dispenser time" (1..60 s, kept by the launcher): the value is read when the screen opens; "save" writes it and READS IT
+//    BACK, and only a read-back that equals the written value counts as saved. Refused unless the launcher is connected
+//    and not preparing. It changes no physical state (no check question afterwards).
 //  * After any release / dispense the physical state is unknown: leaving maintenance asks the driver
 //    the normal check question before anything moves.
 
@@ -103,12 +107,14 @@ enum class Msg : uint8_t {
     DispenseStuck,
     MotorFailed,
     MotorStuck,
-    MotorStopping
+    StillStopping,  // a hold-to-run was pressed again (other direction) before the previous stop was confirmed
+    DurationSaved,
+    DurationFailed
 };
 const char* msg_text(Msg m);
 bool msg_is_problem(Msg m);
 
-enum class CmdTag : uint8_t { None, Launch, Prepare, Release, DispenseStart, MotorStart };  // commands whose result is reported back
+enum class CmdTag : uint8_t { None, Launch, Prepare, Release, DispenseStart, MotorStart, DurationWrite, DurationRead, DurationVerify };  // commands whose result is reported back
 enum class Result : uint8_t { None, Ok, Failed };
 
 struct Command {
@@ -117,6 +123,7 @@ struct Command {
     uint8_t len;
     uint8_t data[4];
     CmdTag tag;
+    bool read = false;  // true: read the characteristic instead of writing it (len = 0)
 };
 
 struct ControlInputs {
@@ -131,7 +138,10 @@ struct ControlInputs {
 
     bool maintenance = false;       // the UI is on a maintenance screen (level)
     bool releaseRequested = false;  // "Release bucket" confirmed (edge)
-    bool dispenseHeld = false;      // the knob is held on the Dispense screen (level)
+    int8_t dispenseHold = 0;        // the knob is held on "dispense" (+1) or "reverse" (-1) of the Dispense screen, else 0 (level)
+    bool durationReadRequest = false;  // the dispenser time screen opened: read the current value (edge)
+    bool durationSave = false;         // "save" pressed (edge) with durationValue seconds
+    uint8_t durationValue = 0;
     int8_t motorHold = 0;           // the knob is held on "up" (+1) or "down" (-1) of Motor control, else 0 (level)
 
     bool launcherConnected = false;  // link fully up in this connection
@@ -148,6 +158,8 @@ struct ControlInputs {
 
     bool dispenserValid = false;  // dispenser control read in this connection
     uint8_t dispenser = 0;        // 0 = stopped, anything else = dispensing
+    bool durationValid = false;   // dispenser time read in this connection
+    uint8_t duration = 0;
     bool motorValid = false;      // pull motor speed read in this connection
     int32_t motor = 0;            // commanded speed, -512..512, 0 = stopped
 
@@ -156,6 +168,8 @@ struct ControlInputs {
     Result releaseResult = Result::None;  // same for "Release bucket"
     Result dispenseResult = Result::None; // same for the dispense START write
     Result motorResult = Result::None;    // same for the motor START write
+    Result durationWriteResult = Result::None;  // same for the dispenser time write
+    Result durationReadResult = Result::None;   // same for the read-back that verifies it
 };
 
 // What a hold-to-run screen (Dispense, Motor control) shows.
@@ -164,7 +178,7 @@ enum class RunState : uint8_t { Idle, Starting, Running, Stopping };
 struct ControlOutputs {
     Command cmds[8];
     uint8_t cmdCount = 0;
-    led_state_t led[8];  // L1..L8; the logic drives L2, L4, L6, L7, L8
+    led_state_t led[12];  // L1..L12; the logic drives L2, L4, L6, L7, L8 and L9 (the rest stays off)
     LauncherStatus launcher = LauncherStatus::Offline;
     Msg message = Msg::None;  // set for exactly one step when something worth telling happened
 
@@ -179,6 +193,7 @@ struct ControlOutputs {
     led_state_t sirenState = LED_OFF;  // same meaning as an LED: on = confirmed, flash = unconfirmed, fast = failing
     RunState dispense = RunState::Idle;
     RunState motor = RunState::Idle;
+    bool durationBusy = false;  // saving the dispenser time (write + read-back) is in progress
 };
 
 class ControlLogic {
@@ -193,6 +208,8 @@ class ControlLogic {
     void handleLaunch(const ControlInputs& in, ControlOutputs& out);
     void autoPrepare(const ControlInputs& in, ControlOutputs& out);
     void handleMaintenance(const ControlInputs& in, ControlOutputs& out);
+    void handleDuration(const ControlInputs& in, ControlOutputs& out);
+    void addRead(ControlOutputs& out, uint8_t device, uint8_t ci, CmdTag tag);
     void addCommandBytes(ControlOutputs& out, uint8_t device, uint8_t ci, const uint8_t* data, uint8_t len, CmdTag tag);
     led_state_t reconcileRelay(const ControlInputs& in, ControlOutputs& out, uint8_t relay, bool want_on);
     led_state_t handleFog(const ControlInputs& in, ControlOutputs& out);
@@ -245,6 +262,11 @@ class ControlLogic {
     };
     RunState runHold(HoldState& h, const HoldSpec& sp, int8_t dir, bool valid, bool running, bool otherOwned,
                      const ControlInputs& in, ControlOutputs& out);
+    // saving the dispenser time: write, then read back and compare
+    enum class DurPhase : uint8_t { Idle, Writing, Verifying };
+    DurPhase durPhase_ = DurPhase::Idle;
+    uint8_t durWant_ = 0;
+    uint32_t durAt_ = 0;
     HoldState dispenseHold_;
     HoldState motorHold_;
 

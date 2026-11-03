@@ -28,7 +28,7 @@ bool check_requested = false;
 Answer pending_answer = Answer::None;
 bool maintenance = false;
 bool release_requested = false;
-bool dispense_held = false;
+int8_t dispense_hold = 0;
 int8_t motor_hold = 0;
 
 // one-shot commands in flight (sequence numbers of ble_link_write) and results to report
@@ -37,11 +37,21 @@ uint32_t prepare_seq = 0;
 uint32_t release_seq = 0;
 uint32_t dispense_seq = 0;
 uint32_t motor_seq = 0;
+uint32_t duration_write_seq = 0;
+uint32_t duration_verify_seq = 0;
 Result launch_result = Result::None;
 Result prepare_result = Result::None;
 Result release_result = Result::None;
 Result dispense_result = Result::None;
 Result motor_result = Result::None;
+Result duration_write_result = Result::None;
+Result duration_verify_result = Result::None;
+bool duration_read_request = false;
+bool duration_save_request = false;
+uint8_t duration_save_value = 0;
+bool last_duration_valid = false;
+uint8_t last_duration = 0;
+bool last_duration_busy = false;
 RunState last_dispense = RunState::Idle;
 RunState last_motor = RunState::Idle;
 
@@ -53,6 +63,8 @@ bool last_prep_valid = false;
 bool last_sb_connected = false;
 bool last_dispenser_valid = false;
 bool last_dispenser_on = false;
+bool last_switch_valid = false;
+bool last_switch_pressed = false;
 LauncherStatus last_status = LauncherStatus::Offline;
 bool last_needs_confirm = false;
 CheckReason last_reason = CheckReason::None;
@@ -77,13 +89,18 @@ Result poll_result(uint32_t& seq) {
 
 void execute(const Command& c) {
     const DeviceKind kind = c.device == 0 ? DeviceKind::Launcher : DeviceKind::Switchboard;
-    const uint32_t seq = ble_link_write(kind, c.charIndex, c.data, c.len);
+    const uint32_t seq = c.read ? ble_link_read(kind, c.charIndex) : ble_link_write(kind, c.charIndex, c.data, c.len);
 
     uint8_t count = 0;
     const CharSpec* specs = ble_char_specs(kind, count);
-    LOGI(TAG, "-> %s %s [%u%s%u]%s", device_kind_name(kind), c.charIndex < count ? specs[c.charIndex].name : "?",
-         (unsigned)c.data[0], c.len > 1 ? " " : "", c.len > 1 ? (unsigned)c.data[1] : 0u,
-         seq == 0 ? "  NOT SENT (link down)" : "");
+    if (c.read) {
+        LOGI(TAG, "-> %s read %s%s", device_kind_name(kind), c.charIndex < count ? specs[c.charIndex].name : "?",
+             seq == 0 ? "  NOT SENT (link down)" : "");
+    } else {
+        LOGI(TAG, "-> %s %s [%u%s%u]%s", device_kind_name(kind), c.charIndex < count ? specs[c.charIndex].name : "?",
+             (unsigned)c.data[0], c.len > 1 ? " " : "", c.len > 1 ? (unsigned)c.data[1] : 0u,
+             seq == 0 ? "  NOT SENT (link down)" : "");
+    }
 
     // One-shot commands are never retried: a command that could not even be queued has failed.
     if (c.tag == CmdTag::Launch) {
@@ -96,7 +113,11 @@ void execute(const Command& c) {
         if (seq == 0) motor_result = Result::Failed; else motor_seq = seq;
     } else if (c.tag == CmdTag::DispenseStart) {
         if (seq == 0) dispense_result = Result::Failed; else dispense_seq = seq;  // (the stop is not one-shot: it is repeated)
-    }
+    } else if (c.tag == CmdTag::DurationWrite) {
+        if (seq == 0) duration_write_result = Result::Failed; else duration_write_seq = seq;
+    } else if (c.tag == CmdTag::DurationVerify) {
+        if (seq == 0) duration_verify_result = Result::Failed; else duration_verify_seq = seq;
+    }  // (DurationRead, a plain refresh, has no result to follow)
 }
 
 }  // namespace
@@ -118,10 +139,24 @@ void controller_request_check() { check_requested = true; }
 
 void controller_set_maintenance(bool on) { maintenance = on; }
 void controller_request_release() { release_requested = true; }
-void controller_set_dispense_held(bool held) { dispense_held = held; }
+void controller_set_dispense_hold(int8_t dir) { dispense_hold = dir > 0 ? 1 : (dir < 0 ? -1 : 0); }
 RunState controller_dispense_state() { return last_dispense; }
 void controller_set_motor_hold(int8_t dir) { motor_hold = dir > 0 ? 1 : (dir < 0 ? -1 : 0); }
 RunState controller_motor_state() { return last_motor; }
+void controller_request_duration_read() { duration_read_request = true; }
+void controller_request_duration_save(uint8_t seconds) {
+    duration_save_request = true;
+    duration_save_value = seconds;
+}
+bool controller_duration(uint8_t* seconds) {
+    if (seconds) *seconds = last_duration;
+    return last_duration_valid;
+}
+bool controller_duration_busy() { return last_duration_busy; }
+bool controller_bucket_switch(bool* pressed) {
+    if (pressed) *pressed = last_switch_pressed;
+    return last_switch_valid;
+}
 Msg controller_last_message(uint32_t* at) {
     if (at) *at = last_msg_at;
     return last_msg;
@@ -142,8 +177,13 @@ void controller_update(uint32_t now) {
     in.answer = pending_answer;
     in.maintenance = maintenance;
     in.releaseRequested = release_requested;
-    in.dispenseHeld = dispense_held;
+    in.dispenseHold = dispense_hold;
     in.motorHold = motor_hold;
+    in.durationReadRequest = duration_read_request;
+    in.durationSave = duration_save_request;
+    in.durationValue = duration_save_value;
+    duration_read_request = false;
+    duration_save_request = false;
     launch_pressed = false;
     check_requested = false;
     release_requested = false;
@@ -161,6 +201,16 @@ void controller_update(uint32_t now) {
     if (in.dispenserValid) in.dispenser = v[0];
     last_dispenser_valid = in.dispenserValid;
     last_dispenser_on = in.dispenserValid && v[0] != 0;
+
+    // switch at the bottom of the launcher (optional, display only): 0x01 = pressed
+    last_switch_valid = ble_link_get_value(DeviceKind::Launcher, LCH_BUCKET_SWITCH, v, sizeof(v), &len, nullptr) && len >= 1;
+    last_switch_pressed = last_switch_valid && v[0] != 0;
+
+    // dispenser time (optional, one byte)
+    in.durationValid = ble_link_get_value(DeviceKind::Launcher, LCH_DISPENSER_DURATION, v, sizeof(v), &len, nullptr) && len >= 1;
+    if (in.durationValid) in.duration = v[0];
+    last_duration_valid = in.durationValid;
+    last_duration = in.duration;
 
     // pull motor (optional): signed 32-bit big-endian commanded speed, 0 = stopped
     in.motorValid = ble_link_get_value(DeviceKind::Launcher, LCH_PULL_MOTOR, v, sizeof(v), &len, nullptr) && len >= 4;
@@ -187,16 +237,23 @@ void controller_update(uint32_t now) {
     const Result rr = poll_result(release_seq);
     const Result dr = poll_result(dispense_seq);
     const Result mr = poll_result(motor_seq);
+    const Result dwr = poll_result(duration_write_seq);
+    const Result dvr = poll_result(duration_verify_seq);
     in.releaseResult = rr != Result::None ? rr : release_result;
     in.dispenseResult = dr != Result::None ? dr : dispense_result;
     in.motorResult = mr != Result::None ? mr : motor_result;
     release_result = Result::None;
     dispense_result = Result::None;
     motor_result = Result::None;
+    in.durationWriteResult = dwr != Result::None ? dwr : duration_write_result;
+    in.durationReadResult = dvr != Result::None ? dvr : duration_verify_result;
+    duration_write_result = Result::None;
+    duration_verify_result = Result::None;
 
     logic.step(in, outs);
     last_dispense = outs.dispense;
     last_motor = outs.motor;
+    last_duration_busy = outs.durationBusy;
 
     for (uint8_t i = 0; i < outs.cmdCount; i++) execute(outs.cmds[i]);
 
@@ -205,6 +262,7 @@ void controller_update(uint32_t now) {
     leds_set_state(LED_L6_PANIC_MODE, outs.led[5]);
     leds_set_state(LED_L7_FLASHING_LIGHT, outs.led[6]);
     leds_set_state(LED_L8_FOG_STATUS, outs.led[7]);
+    leds_set_state(LED_L9_PREPARING, outs.led[8]);
 
     // Remember what the unit believes (only the two real states), as a hint for the next power-up.
     if (outs.known != Known::Unknown && outs.known != saved_known) {
