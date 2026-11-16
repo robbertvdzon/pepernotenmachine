@@ -13,9 +13,13 @@
 #include <lvgl.h>
 
 LV_FONT_DECLARE(font_pixel_16)
+LV_FONT_DECLARE(font_splash_title)  // Passion One Bold 26 px (OFL), start-up splash title only
+LV_FONT_DECLARE(font_splash_sub)    // Barlow Condensed Bold 17 px (OFL), start-up splash subtitle only
 
 #define UI_FONT_NORMAL (&font_pixel_16)
 #define UI_FONT_SMALL (&lv_font_unscii_8)
+#define UI_FONT_SPLASH_TITLE (&font_splash_title)
+#define UI_FONT_SPLASH_SUB (&font_splash_sub)
 
 constexpr int UI_FONT_NORMAL_W = 8;
 constexpr int UI_FONT_NORMAL_H = 17;  // line height reported by the font

@@ -3,6 +3,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <vector>
 
 #include "control_logic.h"
 
@@ -86,87 +87,95 @@ struct Sim {
     }
 };
 
-// ------------------------------------------------------------------ relays
-static void test_flash_light_relay() {
-    Sim s;
-    s.in.sw[CSW_FLASH] = true;
-    s.run();
-    const Command* c = s.find(1, SCH_RELAYS);
-    CHECK(c && c->len == 2 && c->data[0] == RELAY_FLASHING_LIGHT && c->data[1] == 1);
-    CHECK(s.out.led[6] == LED_FLASH);              // wanted but not confirmed yet
-
-    s.run(100);                                    // too soon: no repeat
-    CHECK(s.count(1, SCH_RELAYS) == 0);
-    s.run(500);                                    // still unconfirmed: sent again
-    CHECK(s.count(1, SCH_RELAYS) == 1);
-
-    s.in.relays[RELAY_FLASHING_LIGHT - 1] = 1;     // switchboard confirms
-    s.run(100);
-    CHECK(s.count(1, SCH_RELAYS) == 0 && s.out.led[6] == LED_ON);
-
-    s.in.sw[CSW_FLASH] = false;                    // switch off
-    s.run(100);
-    c = s.find(1, SCH_RELAYS);
-    CHECK(c && c->data[0] == RELAY_FLASHING_LIGHT && c->data[1] == 0);
-    s.in.relays[RELAY_FLASHING_LIGHT - 1] = 0;
-    s.run(100);
-    CHECK(s.count(1, SCH_RELAYS) == 0 && s.out.led[6] == LED_OFF);
+// ------------------------------------------------------------------ relays and manual switches
+static int relay_cmds(const Sim& s, uint8_t relay, int state = -1) {
+    int n = 0;
+    for (uint8_t i = 0; i < s.out.cmdCount; i++)
+        if (s.out.cmds[i].device == 1 && s.out.cmds[i].charIndex == SCH_RELAYS && s.out.cmds[i].data[0] == relay &&
+            (state < 0 || s.out.cmds[i].data[1] == state))
+            n++;
+    return n;
 }
 
-static void test_relays_independent_of_launcher_and_siren_momentary() {
+static void test_flash_switch_drives_the_three_flashlights() {
+    Sim s;
+    s.in.sw[CSW_FLASH] = true;                     // SW4
+    s.run();
+    CHECK(relay_cmds(s, RELAY_RED_FLASH, 1) == 1 && relay_cmds(s, RELAY_ORANGE_RIGHT, 1) == 1 && relay_cmds(s, RELAY_ORANGE_LEFT, 1) == 1);
+    CHECK(s.out.cmdCount == 3);                    // and nothing else
+    CHECK(s.out.led[6] == LED_ON);                 // L7: active, a normal round trip is not shown
+
+    s.run(100);                                    // too soon: no repeat, and the LED does not show such a short lag
+    CHECK(s.out.cmdCount == 0 && s.out.led[6] == LED_ON);
+    s.run(700);                                    // still unconfirmed: sent again, and now the LED says so
+    CHECK(s.out.cmdCount == 3 && s.out.led[6] == LED_FLASH);
+    s.run(3000);
+    CHECK(s.out.led[6] == LED_FLASH_FAST);         // not confirmed after the pending timeout
+
+    s.apply_relay_commands();                      // the switchboard confirms (all three)
+    s.in.relays[RELAY_RED_FLASH - 1] = s.in.relays[RELAY_ORANGE_RIGHT - 1] = s.in.relays[RELAY_ORANGE_LEFT - 1] = 1;
+    s.run(100);
+    CHECK(s.out.cmdCount == 0 && s.out.led[6] == LED_ON);
+
+    s.in.sw[CSW_FLASH] = false;                    // switch off: all three off
+    s.run(100);
+    CHECK(relay_cmds(s, RELAY_RED_FLASH, 0) == 1 && relay_cmds(s, RELAY_ORANGE_RIGHT, 0) == 1 && relay_cmds(s, RELAY_ORANGE_LEFT, 0) == 1);
+    s.apply_relay_commands();
+    s.run(100);
+    CHECK(s.out.cmdCount == 0 && s.out.led[6] == LED_OFF);
+}
+
+static void test_illumination_and_airhorn_switches_independent_of_the_launcher() {
     Sim s;
     s.in.launcherConnected = false;                // the launcher being away changes nothing here
     s.in.prepValid = false;
-    s.in.sw[CSW_DECOR] = true;
-    s.in.sw[CSW_SIREN] = true;
+    s.in.sw[CSW_DECOR] = true;                     // SW6
+    s.in.sw[CSW_HORN] = true;                      // SW7
     s.run();
-    int decor = 0, siren = 0, flash = 0;
-    for (uint8_t i = 0; i < s.out.cmdCount; i++) {
-        if (s.out.cmds[i].data[0] == RELAY_DECORATIVE_LIGHT) decor++;
-        if (s.out.cmds[i].data[0] == RELAY_SIREN) siren++;
-        if (s.out.cmds[i].data[0] == RELAY_FLASHING_LIGHT) flash++;
-    }
-    CHECK(decor == 1 && siren == 1 && flash == 0);
-
-    s.in.relays[RELAY_DECORATIVE_LIGHT - 1] = 1;
-    s.in.relays[RELAY_SIREN - 1] = 1;
+    CHECK(relay_cmds(s, RELAY_ILLUMINATION, 1) == 1 && relay_cmds(s, RELAY_AIRHORN, 1) == 1 && s.out.cmdCount == 2);
+    s.apply_relay_commands();
     s.run(100);
-    CHECK(s.out.cmdCount == 0);
+    CHECK(s.out.cmdCount == 0 && s.out.led[3] == LED_ON && s.out.hornState == LED_ON);
 
-    s.in.sw[CSW_SIREN] = false;                    // button released: relay follows at once
+    s.in.sw[CSW_HORN] = false;                     // momentary: the relay follows the button at once
     s.run(100);
-    const Command* c = s.find(1, SCH_RELAYS);
-    CHECK(c && c->data[0] == RELAY_SIREN && c->data[1] == 0);
+    CHECK(relay_cmds(s, RELAY_AIRHORN, 0) == 1 && relay_cmds(s, RELAY_ILLUMINATION) == 0);
+    s.apply_relay_commands();
+    s.run(100);
+    CHECK(s.out.hornState == LED_OFF && s.out.led[3] == LED_ON);
 }
 
 static void test_relays_reapplied_after_reconnect() {
     Sim s;
-    s.in.sw[CSW_FLASH] = true;
-    s.in.relays[RELAY_FLASHING_LIGHT - 1] = 1;
+    s.in.sw[CSW_DECOR] = true;
+    s.in.relays[RELAY_ILLUMINATION - 1] = 1;
     s.run();
-    CHECK(s.out.cmdCount == 0 && s.out.led[6] == LED_ON);
+    CHECK(s.out.cmdCount == 0 && s.out.led[3] == LED_ON);
 
-    s.in.switchboardConnected = false;             // link lost: nothing can be sent, LED says "waiting"
+    s.in.switchboardConnected = false;             // link lost: nothing can be sent, the LED says "waiting"
     s.in.relaysValid = false;
     s.run(100);
-    CHECK(s.out.cmdCount == 0 && s.out.led[6] == LED_FLASH);
+    CHECK(s.out.cmdCount == 0 && s.out.led[3] == LED_ON);   // a short lag is not shown
+    s.run(1000);
+    CHECK(s.out.cmdCount == 0 && s.out.led[3] == LED_FLASH);
     s.run(4000);
-    CHECK(s.out.led[6] == LED_FLASH_FAST);         // still unconfirmed after the pending timeout
+    CHECK(s.out.led[3] == LED_FLASH_FAST);         // still unconfirmed after the pending timeout
 
     s.in.switchboardConnected = true;              // reconnected: the failsafe turned everything off
     s.in.relaysValid = true;
     memset(s.in.relays, 0, sizeof(s.in.relays));
     s.run(100);
-    const Command* c = s.find(1, SCH_RELAYS);
-    CHECK(c && c->data[0] == RELAY_FLASHING_LIGHT && c->data[1] == 1);
+    CHECK(relay_cmds(s, RELAY_ILLUMINATION, 1) == 1);
 }
 
 static void test_unknown_switch_state_changes_nothing_and_stops_fog() {
     Sim s;
     s.in.switchesValid = false;
-    s.in.sw[CSW_FLASH] = true;                     // stale value must be ignored
+    s.in.sw[CSW_FLASH] = true;                     // stale values must be ignored
+    s.in.sw[CSW_PANIC] = true;
+    s.in.sw[CSW_AUTO] = true;
     s.run();
-    CHECK(s.count(1, SCH_RELAYS) == 0);
+    CHECK(s.count(1, SCH_RELAYS) == 0 && s.out.led[0] == LED_OFF && s.out.led[5] == LED_OFF);
 
     s.in.fogState = 3;
     s.in.fogControl = 1;                           // fogging while we lost the switches
@@ -226,74 +235,272 @@ static void test_fog_waits_while_heating_and_stops_on_switch_off() {
     CHECK(s.count(1, SCH_FOG_CONTROL) == 0 && s.out.led[7] == LED_ON);
 }
 
-// ------------------------------------------------------------------- panic
-static bool is_panic_relay(uint8_t r) {
-    for (uint8_t k = 0; k < PANIC_RELAY_COUNT; k++)
-        if (PANIC_RELAYS[k] == r) return true;
-    return false;
-}
-
-static void test_panic_fires_relays_in_random_order_and_stops() {
-    // the panic relays must not collide with the other relays
-    for (uint8_t k = 0; k < PANIC_RELAY_COUNT; k++) {
-        CHECK(PANIC_RELAYS[k] >= 1 && PANIC_RELAYS[k] <= 8);
-        CHECK(PANIC_RELAYS[k] != RELAY_FLASHING_LIGHT && PANIC_RELAYS[k] != RELAY_DECORATIVE_LIGHT &&
-              PANIC_RELAYS[k] != RELAY_SIREN);
-    }
-
-    Sim s;
-    s.in.sw[CSW_PANIC] = true;
-    int on_events = 0, max_on_at_once = 0, other_relays = 0;
-    bool used[9] = {false};
-    uint8_t last_on = 0, seen_changes = 0;
-    for (int i = 0; i < 200; i++) {                // 20 s in 100 ms steps, switchboard applies commands
-        s.run(100);
-        for (uint8_t c = 0; c < s.out.cmdCount; c++) {
-            if (s.out.cmds[c].device != 1) continue;
-            const uint8_t r = s.out.cmds[c].data[0];
-            if (!is_panic_relay(r)) other_relays++;
-            if (s.out.cmds[c].data[1] == 1) { on_events++; used[r] = true; if (r == last_on) seen_changes = 255; last_on = r; }
+// ------------------------------------------------- automatic mode (SW5) and panic mode (SW2)
+// A fake switchboard + fog machine: relay commands are applied at once, fog start / stop change the machine state.
+struct Plant {
+    Sim& s;
+    uint32_t fogStarts = 0, fogStops = 0;
+    explicit Plant(Sim& sim) : s(sim) {}
+    void step(uint32_t dt) {
+        s.run(dt);
+        for (uint8_t i = 0; i < s.out.cmdCount; i++) {
+            const Command& c = s.out.cmds[i];
+            if (c.device == 1 && c.charIndex == SCH_RELAYS) s.in.relays[c.data[0] - 1] = c.data[1];
+            if (c.device == 1 && c.charIndex == SCH_FOG_CONTROL) {
+                if (c.data[0] == 1) { s.in.fogState = 3; s.in.fogControl = 1; fogStarts++; }
+                else { s.in.fogState = 2; s.in.fogControl = 0; fogStops++; }
+            }
         }
-        s.apply_relay_commands();
-        int on_now = 0;
-        for (uint8_t r = 0; r < 8; r++) if (s.in.relays[r] == 1) on_now++;
-        if (on_now > max_on_at_once) max_on_at_once = on_now;
     }
-    int distinct = 0;
-    for (int r = 1; r <= 8; r++) if (used[r]) distinct++;
-    CHECK(on_events >= 8);                         // keeps firing
-    CHECK(max_on_at_once == 1);                    // one at a time
-    CHECK(distinct >= 3);                          // random order over several relays
-    CHECK(other_relays == 0);                      // never touches any other relay
-    CHECK(seen_changes != 255);                    // never the same relay twice in a row
-    CHECK(s.out.led[5] == LED_ON);                 // L6: panic active
+    bool on(uint8_t relay) const { return s.in.relays[relay - 1] == 1; }
+};
 
-    s.in.sw[CSW_PANIC] = false;                    // switched off: everything off at once
-    s.run(100);
-    s.apply_relay_commands();
-    s.run(100);
-    int still_on = 0;
-    for (uint8_t r = 0; r < 8; r++) if (s.in.relays[r] == 1) still_on++;
-    CHECK(still_on == 0 && s.out.led[5] == LED_OFF);
+struct Segment {
+    bool on;
+    uint32_t ms;
+};
 
-    s.run(3000);                                   // after the clean-up time those relays are left alone
-    s.in.relays[PANIC_RELAYS[0] - 1] = 1;          // e.g. used by something else
-    s.run(100);
-    CHECK(s.out.cmdCount == 0);
+// Samples `relay` for `total_ms` (step_ms steps) and returns its on/off segments (the first and the last one are partial).
+static std::vector<Segment> record(Plant& p, uint8_t relay, uint32_t total_ms, uint32_t step_ms = 10) {
+    std::vector<Segment> out;
+    for (uint32_t t = 0; t < total_ms; t += step_ms) {
+        p.step(step_ms);
+        const bool on = p.on(relay);
+        if (out.empty() || out.back().on != on) out.push_back({on, 0});
+        out.back().ms += step_ms;
+    }
+    return out;
 }
 
-static void test_panic_waits_for_switchboard_and_sw5_does_nothing() {
-    Sim s;
-    s.in.sw[CSW_PANIC] = true;
-    s.in.switchboardConnected = false;
-    s.in.relaysValid = false;
-    s.run(500);
-    CHECK(s.out.cmdCount == 0 && s.out.led[5] == LED_FLASH_FAST);   // cannot reach the bells
+static void test_the_spec_table() {
+    // the device table of the README, in one place: relay, manual switch, auto behaviour, panic behaviour
+    struct Row { DeviceId id; uint8_t relay; int8_t manual; Mode aut; Mode panic; };
+    const Row rows[] = {
+        {DEV_RED_FLASH, 1, CSW_FLASH, Mode::Pattern, Mode::On},       // relay 1: red flashlight, outside right back
+        {DEV_ORANGE_INSIDE, 2, CSW_NONE, Mode::Off, Mode::On},        // relay 2: orange flashlight, inside
+        {DEV_STROBE_INSIDE, 3, CSW_NONE, Mode::Off, Mode::On},        // relay 3: strobe light, inside
+        {DEV_ILLUMINATION, 4, CSW_DECOR, Mode::Pattern, Mode::Pattern},  // relay 4: illumination, exterior
+        {DEV_ORANGE_RIGHT, 5, CSW_FLASH, Mode::Pattern, Mode::On},    // relay 5: orange flashlight, outside right front
+        {DEV_AIRHORN, 6, CSW_HORN, Mode::Off, Mode::Off},             // relay 6: airhorn
+        {DEV_SIREN, 7, CSW_NONE, Mode::Off, Mode::Pattern},           // relay 7: siren
+        {DEV_ORANGE_LEFT, 8, CSW_FLASH, Mode::Pattern, Mode::On},     // relay 8: orange flashlight, outside left front
+        {DEV_FOG, 0, CSW_FOG, Mode::Pattern, Mode::On},               // fog output (D9)
+    };
+    CHECK(sizeof(rows) / sizeof(rows[0]) == DEVICE_COUNT);
+    for (const Row& r : rows) {
+        CHECK(DEVICES[r.id].relay == r.relay && DEVICES[r.id].manualSwitch == r.manual);
+        CHECK(DEVICES[r.id].autoMode.mode == r.aut && DEVICES[r.id].panicMode.mode == r.panic);
+    }
+    // every relay is used once; patterns are sane
+    bool used[9] = {false};
+    for (int i = 0; i < DEVICE_COUNT; i++) {
+        const uint8_t rl = DEVICES[i].relay;
+        if (rl) { CHECK(rl >= 1 && rl <= 8 && !used[rl]); used[rl] = true; }
+        const Behaviour bs[2] = {DEVICES[i].autoMode, DEVICES[i].panicMode};
+        for (const Behaviour& b : bs) {
+            if (b.mode != Mode::Pattern) continue;
+            CHECK(b.pattern && b.pattern->count >= 2 && b.pattern->phases);
+            uint32_t sum_min = 0, sum_max = 0;
+            for (uint8_t k = 0; k < b.pattern->count; k++) {
+                CHECK(b.pattern->phases[k].minMs <= b.pattern->phases[k].maxMs);
+                if (b.pattern->periodMs == 0 || k + 1 < b.pattern->count) { sum_min += b.pattern->phases[k].minMs; sum_max += b.pattern->phases[k].maxMs; }
+            }
+            CHECK(sum_min > 0);                                           // never a zero-length cycle
+            if (b.pattern->periodMs) CHECK(sum_max <= b.pattern->periodMs);  // the fill phase can never be negative
+        }
+    }
+    for (int r = 1; r <= 8; r++) CHECK(used[r]);
+}
 
-    Sim t;
-    t.in.sw[CSW_AUTO] = true;                      // SW5 automatic mode: not defined, does nothing
-    t.run(100);
-    CHECK(t.out.cmdCount == 0 && t.out.led[0] == LED_OFF);
+static void test_panic_mode() {
+    Sim s;
+    s.in.sw[CSW_PANIC] = true;                     // SW2
+    Plant p(s);
+    p.step(10);
+    // on, steady: red, orange right, orange left, orange inside, strobe inside; fog on
+    for (int i = 0; i < 20; i++) p.step(100);
+    CHECK(p.on(RELAY_RED_FLASH) && p.on(RELAY_ORANGE_RIGHT) && p.on(RELAY_ORANGE_LEFT));
+    CHECK(p.on(RELAY_ORANGE_INSIDE) && p.on(RELAY_STROBE_INSIDE));
+    CHECK(!p.on(RELAY_AIRHORN));
+    CHECK(p.fogStarts >= 1 && s.out.led[7] == LED_PULSE);   // fog on
+    CHECK(s.out.led[5] == LED_ON && s.out.led[6] == LED_ON);  // L6 panic, L7 the flashlights are on
+    // the illumination blinks 1 s on / 1 s off, the siren is short and periodic (see the pattern tests)
+    Sim s2;
+    s2.in.sw[CSW_PANIC] = true;
+    Plant p2(s2);
+    std::vector<Segment> ill = record(p2, RELAY_ILLUMINATION, 12000);
+    CHECK(ill.size() >= 10);
+    for (size_t i = 1; i + 1 < ill.size(); i++) CHECK(ill[i].ms >= 990 && ill[i].ms <= 1010);
+
+    // panic off: everything off again, the fog stops
+    s.in.sw[CSW_PANIC] = false;
+    for (int i = 0; i < 20; i++) p.step(100);
+    for (uint8_t r = 1; r <= 8; r++) CHECK(!p.on(r));
+    CHECK(p.fogStops >= 1 && s.out.led[5] == LED_OFF && s.out.led[7] == LED_ON);
+}
+
+static void test_auto_mode() {
+    Sim s;
+    s.in.sw[CSW_AUTO] = true;                      // SW5
+    Plant p(s);
+    uint32_t horn = 0, siren = 0, inside = 0, strobe = 0;
+    uint32_t red_on = 0, right_on = 0, left_on = 0, ill_on = 0;
+    const uint32_t steps = 6000;                   // 60 s in 10 ms steps
+    for (uint32_t i = 0; i < steps; i++) {
+        p.step(10);
+        horn += p.on(RELAY_AIRHORN); siren += p.on(RELAY_SIREN); inside += p.on(RELAY_ORANGE_INSIDE); strobe += p.on(RELAY_STROBE_INSIDE);
+        red_on += p.on(RELAY_RED_FLASH); right_on += p.on(RELAY_ORANGE_RIGHT); left_on += p.on(RELAY_ORANGE_LEFT); ill_on += p.on(RELAY_ILLUMINATION);
+    }
+    CHECK(horn == 0 && siren == 0 && inside == 0 && strobe == 0);   // not part of automatic mode
+    CHECK(red_on > steps / 5 && red_on < steps * 9 / 10);           // flashing, not steady
+    CHECK(right_on > steps / 5 && right_on < steps * 9 / 10);
+    CHECK(left_on > steps / 5 && left_on < steps * 9 / 10);
+    CHECK(ill_on > steps * 9 / 10);                                  // illumination: practically always on
+    CHECK(s.out.led[0] == LED_ON && s.out.led[6] == LED_ON);         // L1, L7
+    CHECK(s.out.led[5] == LED_OFF);
+
+    s.in.sw[CSW_AUTO] = false;                     // off: everything off
+    for (int i = 0; i < 10; i++) p.step(100);
+    for (uint8_t r = 1; r <= 8; r++) CHECK(!p.on(r));
+    CHECK(s.out.led[0] == LED_OFF);
+}
+
+static void test_manual_switches_beat_panic_and_auto_and_panic_beats_auto() {
+    // 1. SW4 on: all three flashlights steady on, whatever SW2 / SW5 do
+    Sim a;
+    a.in.sw[CSW_FLASH] = true;
+    a.in.sw[CSW_AUTO] = true;
+    Plant pa(a);
+    for (int i = 0; i < 1500; i++) {               // 15 s of automatic mode
+        pa.step(10);
+        CHECK(pa.on(RELAY_RED_FLASH) && pa.on(RELAY_ORANGE_RIGHT) && pa.on(RELAY_ORANGE_LEFT));
+    }
+    a.in.sw[CSW_PANIC] = true;
+    for (int i = 0; i < 1500; i++) {
+        pa.step(10);
+        CHECK(pa.on(RELAY_RED_FLASH) && pa.on(RELAY_ORANGE_RIGHT) && pa.on(RELAY_ORANGE_LEFT));
+    }
+    // ... and the rest follows panic mode meanwhile
+    CHECK(pa.on(RELAY_ORANGE_INSIDE) && pa.on(RELAY_STROBE_INSIDE));
+
+    // 2. SW6 on in panic mode: the illumination does NOT blink, it stays on
+    Sim b;
+    b.in.sw[CSW_PANIC] = true;
+    b.in.sw[CSW_DECOR] = true;
+    Plant pb(b);
+    for (int i = 0; i < 1500; i++) {
+        pb.step(10);
+        CHECK(pb.on(RELAY_ILLUMINATION));
+    }
+
+    // 3. panic beats auto: with both on the illumination blinks (panic), the inside lights are on
+    Sim c;
+    c.in.sw[CSW_PANIC] = true;
+    c.in.sw[CSW_AUTO] = true;
+    Plant pc(c);
+    std::vector<Segment> ill = record(pc, RELAY_ILLUMINATION, 8000);
+    CHECK(ill.size() >= 6);
+    for (size_t i = 1; i + 1 < ill.size(); i++) CHECK(ill[i].ms >= 990 && ill[i].ms <= 1010);
+    CHECK(pc.on(RELAY_ORANGE_INSIDE) && pc.on(RELAY_STROBE_INSIDE));
+    CHECK(c.out.led[0] == LED_ON && c.out.led[5] == LED_ON);   // L1 and L6 both show their switch
+
+    // 4. SW3 (fog) on in auto mode: the fog stays on, no 2 s bursts
+    Sim d;
+    d.in.sw[CSW_FOG] = true;
+    d.in.sw[CSW_AUTO] = true;
+    Plant pd(d);
+    for (int i = 0; i < 2000; i++) pd.step(10);
+    CHECK(pd.fogStops == 0 && d.in.fogControl == 1);
+
+    // 5. the airhorn is only SW7: not in auto, not in panic
+    Sim e;
+    e.in.sw[CSW_PANIC] = true;
+    e.in.sw[CSW_AUTO] = true;
+    Plant pe(e);
+    for (int i = 0; i < 2000; i++) { pe.step(10); CHECK(!pe.on(RELAY_AIRHORN)); }
+    e.in.sw[CSW_HORN] = true;
+    pe.step(10);
+    CHECK(pe.on(RELAY_AIRHORN));
+}
+
+static void test_auto_and_panic_patterns_timings() {
+    // red flashlight (auto): 3 s on, 1 s off, each with up to 2 s extra
+    {
+        Sim s; s.in.sw[CSW_AUTO] = true; Plant p(s);
+        std::vector<Segment> seg = record(p, RELAY_RED_FLASH, 120000);
+        CHECK(seg.size() > 20 && seg[0].on);                              // starts with "on"
+        for (size_t i = 0; i + 1 < seg.size(); i++) {
+            if (seg[i].on) CHECK(seg[i].ms >= 3000 && seg[i].ms <= 5010);
+            else CHECK(seg[i].ms >= 1000 && seg[i].ms <= 3010);
+        }
+        bool varies = false;
+        for (size_t i = 2; i + 1 < seg.size(); i += 2) varies |= seg[i].ms != seg[0].ms;
+        CHECK(varies);                                                      // the random part is really random
+    }
+    // orange right front (auto): 1 s off, 3 s on, each with up to 2 s extra
+    {
+        Sim s; s.in.sw[CSW_AUTO] = true; Plant p(s);
+        std::vector<Segment> seg = record(p, RELAY_ORANGE_RIGHT, 120000);
+        CHECK(seg.size() > 20 && !seg[0].on);                             // starts with "off"
+        for (size_t i = 0; i + 1 < seg.size(); i++) {
+            if (seg[i].on) CHECK(seg[i].ms >= 3000 && seg[i].ms <= 5010);
+            else CHECK(seg[i].ms >= 1000 && seg[i].ms <= 3010);
+        }
+    }
+    // orange left front (auto): exactly 2 s on, 2 s off, 4 s on, 2 s off, repeated
+    {
+        Sim s; s.in.sw[CSW_AUTO] = true; Plant p(s);
+        std::vector<Segment> seg = record(p, RELAY_ORANGE_LEFT, 60000);
+        CHECK(seg.size() >= 12 && seg[0].on);
+        const uint32_t expect[4] = {2000, 2000, 4000, 2000};
+        for (size_t i = 0; i + 1 < seg.size(); i++) {
+            const uint32_t e = expect[i % 4];
+            CHECK(seg[i].ms + 20 >= e && seg[i].ms <= e + 20);
+            CHECK(seg[i].on == (i % 4 == 0 || i % 4 == 2));
+        }
+    }
+    // illumination (auto): on, with a short disruption now and then (an off phase of at most a second, never long)
+    {
+        Sim s; s.in.sw[CSW_AUTO] = true; Plant p(s);
+        std::vector<Segment> seg = record(p, RELAY_ILLUMINATION, 600000);  // 10 minutes
+        int disruptions = 0;
+        for (size_t i = 0; i + 1 < seg.size(); i++) {
+            if (!seg[i].on) { disruptions++; CHECK(seg[i].ms <= 1010); }
+            else if (i > 0) CHECK(seg[i].ms <= 90010);
+        }
+        CHECK(disruptions >= 6 && disruptions <= 40);
+    }
+    // siren (panic): 400..600 ms on, once every 10 s (the cycle is exactly 10 s)
+    {
+        Sim s; s.in.sw[CSW_PANIC] = true; Plant p(s);
+        std::vector<Segment> seg = record(p, RELAY_SIREN, 120000);
+        int pulses = 0;
+        uint32_t since_last_rise = 0;
+        bool first = true;
+        for (size_t i = 0; i < seg.size(); i++) {
+            if (seg[i].on && i + 1 < seg.size()) {
+                CHECK(seg[i].ms >= 400 && seg[i].ms <= 610);
+                pulses++;
+                if (!first) CHECK(since_last_rise + 20 >= 10000 && since_last_rise <= 10020);
+                first = false;
+                since_last_rise = 0;
+            }
+            since_last_rise += seg[i].ms;
+        }
+        CHECK(pulses >= 11 && pulses <= 12);
+    }
+    // fog (auto): on for 2 s once per minute, at a random moment of that minute
+    {
+        Sim s; s.in.sw[CSW_AUTO] = true; Plant p(s);
+        uint32_t starts_per_min[6] = {0};
+        for (uint32_t t = 0; t < 360000; t += 20) {
+            const uint32_t before = p.fogStarts;
+            p.step(20);
+            if (p.fogStarts > before) starts_per_min[t / 60000]++;
+        }
+        for (int m = 0; m < 6; m++) CHECK(starts_per_min[m] >= 1 && starts_per_min[m] <= 3);   // fog is on for 2 s: a few start requests at most
+        CHECK(p.fogStops >= 5 && p.fogStops <= 7);                                              // one burst per minute
+    }
 }
 
 // ----------------------------------------------------- launcher: power-up check
@@ -632,7 +839,7 @@ static void test_messages() {
     CHECK(msg_is_problem(Msg::LaunchNotReady) && msg_is_problem(Msg::PrepareFailed));
 }
 
-static void test_display_outputs_launch_pending_confirmed_and_siren() {
+static void test_display_outputs_launch_pending_confirmed_and_horn() {
     Sim s;
     s.power_up_and_arm();
     s.run(2000);
@@ -658,14 +865,16 @@ static void test_display_outputs_launch_pending_confirmed_and_siren() {
     f.run(100);
     CHECK(!f.out.launchPending && f.out.launchOkCount == 0 && f.out.launcher == LauncherStatus::Error);
 
-    // siren: no LED, but its state is reported for the display
+    // airhorn: no LED, but its state is reported for the display
     Sim r;
-    r.in.sw[CSW_SIREN] = true;
+    r.in.sw[CSW_HORN] = true;
     r.run(100);
-    CHECK(r.out.sirenState == LED_FLASH);                     // wanted, not confirmed
-    r.in.relays[RELAY_SIREN - 1] = 1;
+    CHECK(r.out.hornState == LED_ON);                         // wanted, a normal round trip is not shown
+    r.run(800);
+    CHECK(r.out.hornState == LED_FLASH);                      // still not confirmed
+    r.in.relays[RELAY_AIRHORN - 1] = 1;
     r.run(100);
-    CHECK(r.out.sirenState == LED_ON);
+    CHECK(r.out.hornState == LED_ON);
 }
 
 // ------------------------------------------------------------------ maintenance
@@ -1423,15 +1632,76 @@ static void test_l9_follows_the_preparation() {
     for (int i = 9; i < 12; i++) CHECK(o.out.led[i] == LED_OFF);
 }
 
+// ---------------------------------------------- modes: transitions, LEDs, edge cases
+static void test_changing_mode_restarts_the_pattern() {
+    // the illumination has a pattern in BOTH modes: after a change it must start at the first phase of the new one
+    Sim s;
+    s.in.sw[CSW_AUTO] = true;
+    Plant p(s);
+    uint32_t guard = 0;
+    while (p.on(RELAY_ILLUMINATION) || guard == 0) {      // run until the grid-failure disruption starts (relay goes off)
+        p.step(10);
+        if (++guard > 20000) break;
+    }
+    CHECK(!p.on(RELAY_ILLUMINATION));
+    s.in.sw[CSW_PANIC] = true;                             // panic: 1 s on, 1 s off, starting with "on"
+    p.step(10);
+    CHECK(p.on(RELAY_ILLUMINATION));
+    for (int i = 0; i < 90; i++) p.step(10);
+    CHECK(p.on(RELAY_ILLUMINATION));                       // still in its first second
+    for (int i = 0; i < 20; i++) p.step(10);
+    CHECK(!p.on(RELAY_ILLUMINATION));                      // and then off
+
+    // and the other way round, after being in the "off" phase of the panic pattern
+    s.in.sw[CSW_PANIC] = false;
+    p.step(10);
+    CHECK(p.on(RELAY_ILLUMINATION));                       // automatic mode starts with its long "on" phase
+}
+
+static void test_leds_show_when_the_switchboard_cannot_be_reached() {
+    Sim s;
+    s.in.sw[CSW_AUTO] = true;
+    s.in.sw[CSW_PANIC] = true;
+    s.run(100);
+    CHECK(s.out.led[0] == LED_ON && s.out.led[5] == LED_ON);       // L1 automatic mode, L6 panic
+    s.in.switchboardConnected = false;
+    s.in.relaysValid = false;
+    s.run(100);
+    CHECK(s.out.led[0] == LED_FLASH_FAST && s.out.led[5] == LED_FLASH_FAST);
+    s.in.sw[CSW_AUTO] = false;
+    s.run(100);
+    CHECK(s.out.led[0] == LED_OFF && s.out.led[5] == LED_FLASH_FAST);
+    s.in.sw[CSW_PANIC] = false;
+    s.run(100);
+    CHECK(s.out.led[5] == LED_OFF);
+}
+
+static void test_a_changed_wish_is_sent_at_once_even_while_unconfirmed() {
+    Sim s;
+    s.in.sw[CSW_DECOR] = true;
+    s.in.relays[RELAY_ILLUMINATION - 1] = 2;       // some other client left it blinking: neither on nor off
+    s.run();
+    CHECK(relay_cmds(s, RELAY_ILLUMINATION, 1) == 1);
+    s.in.sw[CSW_DECOR] = false;
+    s.run(50);                                     // the wish flipped 50 ms later: no waiting for the resend interval
+    CHECK(relay_cmds(s, RELAY_ILLUMINATION, 0) == 1);
+}
+
 int main() {
-    test_flash_light_relay();
-    test_relays_independent_of_launcher_and_siren_momentary();
+    test_flash_switch_drives_the_three_flashlights();
+    test_illumination_and_airhorn_switches_independent_of_the_launcher();
     test_relays_reapplied_after_reconnect();
     test_unknown_switch_state_changes_nothing_and_stops_fog();
     test_fog_keeps_fogging_while_switch_on();
     test_fog_waits_while_heating_and_stops_on_switch_off();
-    test_panic_fires_relays_in_random_order_and_stops();
-    test_panic_waits_for_switchboard_and_sw5_does_nothing();
+    test_the_spec_table();
+    test_panic_mode();
+    test_auto_mode();
+    test_manual_switches_beat_panic_and_auto_and_panic_beats_auto();
+    test_auto_and_panic_patterns_timings();
+    test_changing_mode_restarts_the_pattern();
+    test_leds_show_when_the_switchboard_cannot_be_reached();
+    test_a_changed_wish_is_sent_at_once_even_while_unconfirmed();
     test_power_up_asks_the_driver_and_moves_nothing();
     test_answer_empty_prepares_automatically();
     test_answer_full_prepares_without_the_dispenser();
@@ -1448,7 +1718,7 @@ int main() {
     test_failed_prepare_writes_are_retried_a_few_times();
     test_check_launcher_from_the_menu();
     test_messages();
-    test_display_outputs_launch_pending_confirmed_and_siren();
+    test_display_outputs_launch_pending_confirmed_and_horn();
     test_release_bucket();
     test_maintenance_pauses_automation();
     test_check_is_held_back_and_asked_after_a_release_or_dispense();
@@ -1465,7 +1735,7 @@ int main() {
     test_motor_stops_for_every_reason_and_reports_problems();
 
     if (failures == 0) {
-        std::printf("ALL CONTROL TESTS PASSED (39 tests)\n");
+        std::printf("ALL CONTROL TESTS PASSED (45 tests)\n");
         return 0;
     }
     std::printf("%d CHECK(S) FAILED\n", failures);

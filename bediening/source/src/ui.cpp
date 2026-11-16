@@ -16,7 +16,9 @@
 #include "home_sprites.h"
 #include "link_state.h"
 #include "ui_compat.h"
+#include "splash_model.h"
 #include "ui_home.h"
+#include "ui_splash.h"
 #include "ui_strings.h"
 #include "ui_theme.h"
 
@@ -72,7 +74,7 @@ static_assert(SWITCH_SMALL_Y + UI_FONT_SMALL_H + 2 <= MENU_Y + 2 * (ROW_H + ROW_
 static_assert(SCAN_LIST_HEIGHT >= SCAN_ROW_H * 2, "scan list too short for two device rows");
 
 // ================================================================== state
-enum class Screen : uint8_t { Home, Menu, Setup, Device, Scan, Confirm, Check, CheckHelp, Maintenance, ConfirmRelease, Dispense, Motor, Switch, Duration };
+enum class Screen : uint8_t { Splash, Home, Menu, Setup, Device, Scan, Confirm, Check, CheckHelp, Maintenance, ConfirmRelease, Dispense, Motor, Switch, Duration };
 
 struct NavEntry {
     Screen screen;
@@ -84,6 +86,8 @@ int nav_depth = 0;  // screens BELOW the current one
 Screen cur_id = Screen::Home;
 DeviceKind cur_kind = DeviceKind::Unknown;
 lv_obj_t* home_obj = nullptr;
+SplashModel splash;       // start-up splash: runs until both devices are connected (or the driver pushes after 20 s)
+bool splash_push = false;  // the knob was pushed on the splash since the last step
 lv_obj_t* cur_obj = nullptr;
 lv_obj_t* cur_list = nullptr;  // scrolling list of the current screen (rows live inside it), if any
 lv_group_t* group = nullptr;
@@ -532,6 +536,7 @@ void enter(Screen s, DeviceKind k) {
     last_run_valid = false;
     run_was_forward = false;
     switch (s) {
+        case Screen::Splash: scr = ui_splash_build(); break;
         case Screen::Home: scr = home_obj; break;
         case Screen::Menu: scr = build_menu(); break;
         case Screen::Setup: scr = build_setup(); break;
@@ -557,7 +562,7 @@ void enter(Screen s, DeviceKind k) {
     if (old && old != home_obj && old != scr) lv_obj_delete(old);
 
     if (s == Screen::Scan) regroup(scan.list);
-    else if (s != Screen::Home) regroup(cur_list ? cur_list : scr);
+    else if (s != Screen::Home && s != Screen::Splash) regroup(cur_list ? cur_list : scr);
 
     // The answer that matches the last known state is pre-selected; the driver still has to push.
     if (s == Screen::Check && controller_stored_state() == Known::Armed) lv_group_focus_obj(check_rows[1]);
@@ -870,6 +875,25 @@ void maint_update(uint32_t now) {
     }
 }
 
+// One pass of the start-up splash: feeds the model with the link states and leaves for the home screen when it is over.
+// (The launcher check question opens from there, so it always comes after the splash.)
+void splash_step(uint32_t now) {
+    SplashInputs in;
+    in.now = now;
+    in.launcher = ble_link_state(DeviceKind::Launcher);
+    in.switchboard = ble_link_state(DeviceKind::Switchboard);
+    in.pushed = splash_push;
+    splash_push = false;
+    SplashView view;
+    splash.update(in, view);
+    if (view.done) {
+        nav_depth = 0;
+        enter(Screen::Home, DeviceKind::Unknown);
+        return;
+    }
+    ui_splash_update(view);
+}
+
 void encoder_read(lv_indev_t*, lv_indev_data_t* data) {
     if (cur_id == Screen::Duration && pending_diff != 0) {  // turning changes the value here, it never moves the focus
         duration_turn(pending_diff);
@@ -879,7 +903,8 @@ void encoder_read(lv_indev_t*, lv_indev_data_t* data) {
     pending_diff = 0;
     // The home screen has nothing to click and is static (turning the knob does nothing there);
     // a push opens the menu. LVGL therefore never sees presses on the home screen.
-    data->state = (push_down && cur_id != Screen::Home) ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
+    // Nor on the splash (the push is read by ui_on_push there).
+    data->state = (push_down && cur_id != Screen::Home && cur_id != Screen::Splash) ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
 }
 
 }  // namespace
@@ -902,10 +927,13 @@ void ui_init() {
     ui_home_build(home_obj);
     ui_update(0);
 
-    // Setup incomplete: go straight to the setup. Back leads to the home screen.
+    // Setup incomplete: go straight to the setup (no splash). Back leads to the home screen.
+    // Otherwise the splash runs until both devices are connected.
     StoredDevice d;
     if (!device_store_load(DeviceKind::Launcher, d) || !device_store_load(DeviceKind::Switchboard, d)) {
         go(Screen::Setup, DeviceKind::Unknown);
+    } else {
+        enter(Screen::Splash, DeviceKind::Unknown);
     }
 }
 
@@ -948,6 +976,7 @@ void ui_update(uint32_t now) {
     home.now = now;
     ui_home_update(home, cur_id == Screen::Home);  // the model keeps running while another screen is open
     if (cur_id == Screen::Scan) scan_update(now);
+    if (cur_id == Screen::Splash) splash_step(now);
 }
 
 void ui_on_encoder(int32_t delta) {
@@ -960,10 +989,12 @@ void ui_on_push(bool pressed) {
     if (pressed == push_down) return;
     push_down = pressed;
     if (pressed) press_epoch = screen_epoch;
-    if (!pressed && cur_id == Screen::Home) go(Screen::Menu, DeviceKind::Unknown);  // push on the home screen = menu
+    // push on the home screen = menu (not when the knob went down on another screen, e.g. the splash that just ended)
+    if (!pressed && cur_id == Screen::Home && press_epoch == screen_epoch) go(Screen::Menu, DeviceKind::Unknown);
+    if (!pressed && cur_id == Screen::Splash) splash_push = true;
 }
 
 void ui_on_back() {
-    if (cur_id == Screen::Home || cur_id == Screen::Check) return;  // the check must be answered
+    if (cur_id == Screen::Home || cur_id == Screen::Check || cur_id == Screen::Splash) return;  // the check must be answered
     go_back();
 }

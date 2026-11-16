@@ -1,5 +1,5 @@
 // Host tests for the home screen model (what is shown) and the pixel art (stays inside its surface).
-//   g++ -std=c++11 -Wall -Wextra -Iinclude test/host/test_home.cpp src/home_model.cpp src/home_sprites.cpp src/gfx.cpp src/control_logic.cpp src/ble_devices.cpp -o /tmp/test_home && /tmp/test_home
+//   g++ -std=c++11 -Wall -Wextra -Iinclude test/host/test_home.cpp src/home_model.cpp src/home_sprites.cpp src/gfx.cpp src/control_logic.cpp src/pattern_runner.cpp src/ble_devices.cpp -o /tmp/test_home && /tmp/test_home
 
 #include <cstdio>
 #include <cstring>
@@ -205,13 +205,13 @@ static void test_tiles_follow_the_led_states() {
     h.in.panicLed = LED_ON;
     h.in.flashLed = LED_ON;
     h.in.lampLed = LED_FLASH_FAST;
-    h.in.sirenLed = LED_FLASH;
+    h.in.hornLed = LED_FLASH;
     h.run();
     CHECK(h.v.tile[TILE_FOG] == TileState::Pending);   // heating
     CHECK(h.v.tile[TILE_PANIC] == TileState::Active);
     CHECK(h.v.tile[TILE_FLASH] == TileState::Active);  // the beacon is animated
     CHECK(h.v.tile[TILE_LAMP] == TileState::Problem);
-    CHECK(h.v.tile[TILE_SIREN] == TileState::Pending);
+    CHECK(h.v.tile[TILE_HORN] == TileState::Pending);
     h.in.fogLed = LED_ON;
     h.run();
     CHECK(h.v.tile[TILE_FOG] == TileState::On);        // ready: steady
@@ -230,7 +230,14 @@ static void test_tiles_follow_the_led_states() {
     h.in.switchboardConnected = true;
     h.in.fogLed = LED_ON;
     h.run();
-    CHECK(h.v.tile[TILE_AUTO] == TileState::Off);       // SW5 is not defined yet
+    CHECK(h.v.tile[TILE_AUTO] == TileState::Off);       // automatic mode is off
+    h.in.autoLed = LED_ON;                              // SW5 on: steady
+    h.run();
+    CHECK(h.v.tile[TILE_AUTO] == TileState::On);
+    h.in.autoLed = LED_FLASH_FAST;                      // on, but the switchboard cannot be reached
+    h.run();
+    CHECK(h.v.tile[TILE_AUTO] == TileState::Problem);
+    h.in.autoLed = LED_OFF;
 }
 
 static void test_toast_events_and_conditions() {
@@ -278,13 +285,13 @@ static void test_toast_conditions() {
     h.in.fogLed = LED_FLASH_FAST;
     h.run(10);
     CHECK(std::strcmp(h.v.toast, "fog problem") == 0 && h.v.toastLevel == ToastLevel::Warn);
-    h.in.sirenLed = LED_FLASH_FAST;
+    h.in.hornLed = LED_FLASH_FAST;
     h.run(10);
     CHECK(std::strcmp(h.v.toast, "fog problem +1") == 0);  // the most important one plus a count
     h.in.fogLed = LED_OFF;
     h.run(10);
     CHECK(std::strcmp(h.v.toast, "relay problem") == 0);
-    h.in.sirenLed = LED_OFF;
+    h.in.hornLed = LED_OFF;
     h.run(10);
     CHECK(h.v.toastLevel == ToastLevel::None);
 }

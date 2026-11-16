@@ -55,6 +55,8 @@ ControlLogic::ControlLogic() {
     memset(lastRelaySend_, 0, sizeof(lastRelaySend_));
     memset(pending_, 0, sizeof(pending_));
     memset(pendingSince_, 0, sizeof(pendingSince_));
+    memset(relaySentWant_, 0, sizeof(relaySentWant_));
+    for (uint8_t i = 0; i < DEVICE_COUNT; i++) source_[i] = Source::None;
 }
 
 void ControlLogic::addCommand(ControlOutputs& out, uint8_t device, uint8_t ci, uint8_t b0, uint8_t b1, uint8_t len,
@@ -435,12 +437,15 @@ void ControlLogic::handleDuration(const ControlInputs& in, ControlOutputs& out) 
 // -------------------------------------------------------------------- relays
 // The switch position is the truth. The relay is re-sent until the switchboard reports the
 // wanted state. Returns the LED state for it: on/off when confirmed, flashing while unconfirmed.
-led_state_t ControlLogic::reconcileRelay(const ControlInputs& in, ControlOutputs& out, uint8_t relay, bool want_on) {
-    if (relay < 1 || relay > 8) return LED_OFF;  // not wired
+// Makes one switchboard relay match the wish: sent at once when the wish changes, repeated until the relay reports it.
+// The status is only "Pending" after LED_PENDING_SHOW_MS (a normal round trip is not worth a blinking LED) and "Failing"
+// after LED_PENDING_ERROR_MS.
+ControlLogic::RelayStatus ControlLogic::reconcileRelay(const ControlInputs& in, ControlOutputs& out, uint8_t relay, bool want_on) {
+    if (relay < 1 || relay > 8) return RelayStatus::Synced;  // not wired
     const uint8_t i = relay - 1;
     if (!in.switchesValid) {  // the wish is unknown: change nothing
         pending_[i] = false;
-        return LED_OFF;
+        return RelayStatus::Synced;
     }
 
     const bool can_know = in.switchboardConnected && in.relaysValid;
@@ -448,31 +453,97 @@ led_state_t ControlLogic::reconcileRelay(const ControlInputs& in, ControlOutputs
     if (matches) {
         pending_[i] = false;
         relaySent_[i] = false;
-        return want_on ? LED_ON : LED_OFF;
+        return RelayStatus::Synced;
     }
     if (!want_on && !can_know) {  // nothing wanted and nothing known: stay quiet
         pending_[i] = false;
-        return LED_OFF;
+        return RelayStatus::Synced;
     }
 
     if (!pending_[i]) {
         pending_[i] = true;
         pendingSince_[i] = in.now;
     }
-    if (can_know && (!relaySent_[i] || elapsed(in.now, lastRelaySend_[i]) >= RELAY_RESEND_MS)) {
+    if (can_know && (!relaySent_[i] || relaySentWant_[i] != want_on || elapsed(in.now, lastRelaySend_[i]) >= RELAY_RESEND_MS)) {
         addCommand(out, DEV_SWITCHBOARD, SCH_RELAYS, relay, want_on ? 1 : 0, 2, CmdTag::None);
         relaySent_[i] = true;
+        relaySentWant_[i] = want_on;
         lastRelaySend_[i] = in.now;
     }
-    return elapsed(in.now, pendingSince_[i]) > LED_PENDING_ERROR_MS ? LED_FLASH_FAST : LED_FLASH;
+    const uint32_t waited = elapsed(in.now, pendingSince_[i]);
+    return waited > LED_PENDING_ERROR_MS ? RelayStatus::Failing : (waited > LED_PENDING_SHOW_MS ? RelayStatus::Pending : RelayStatus::Synced);
+}
+
+// ------------------------------------------------------------------- devices
+// Every device of control_patterns.h is decided each step: its manual switch (steady on) beats panic mode (its panic
+// behavior) beats automatic mode (its auto behavior). All wired relays are always driven, so leaving a mode switches
+// the devices off again by itself. Also sets L1 (auto), L4 / L7 (illumination / flashlights: their manual switch or
+// a mode makes them active; on = all relays follow, flash / fast flash = a relay does not follow), L6 (panic),
+// L8 (fog) and the airhorn state.
+void ControlLogic::handleDevices(const ControlInputs& in, ControlOutputs& out) {
+    const bool sw_ok = in.switchesValid;
+    const bool panic = sw_ok && in.sw[CSW_PANIC];
+    const bool auto_on = sw_ok && in.sw[CSW_AUTO];
+    const bool board_ok = in.switchboardConnected && in.relaysValid;
+    rng_ ^= in.random;  // fresh randomness every step; the generator keeps it varied
+
+    bool want[DEVICE_COUNT];
+    bool enabled[DEVICE_COUNT];
+    RelayStatus status[DEVICE_COUNT];
+    for (uint8_t i = 0; i < DEVICE_COUNT; i++) {
+        const DeviceCfg& d = DEVICES[i];
+        Source src = Source::None;
+        Behaviour b = BEH_OFF;
+        if (sw_ok && d.manualSwitch != CSW_NONE && in.sw[d.manualSwitch]) {
+            src = Source::Manual;
+            b = BEH_ON;
+        } else if (panic) {
+            src = Source::Panic;
+            b = d.panicMode;
+        } else if (auto_on) {
+            src = Source::Auto;
+            b = d.autoMode;
+        }
+        if (src != source_[i]) {  // another source takes over: its pattern starts from its first phase
+            source_[i] = src;
+            runner_[i].reset();
+        }
+        enabled[i] = b.mode != Mode::Off;
+        if (b.mode == Mode::Pattern && b.pattern) want[i] = runner_[i].step(*b.pattern, in.now, rng_);
+        else {
+            want[i] = b.mode == Mode::On;
+            runner_[i].reset();
+        }
+        status[i] = d.relay ? reconcileRelay(in, out, d.relay, want[i]) : RelayStatus::Synced;
+    }
+
+    // L4 / L7 / airhorn: one LED per manual switch, covering every device that switch belongs to
+    auto group = [&](int8_t manual) {
+        bool any = false;
+        RelayStatus worst = RelayStatus::Synced;
+        for (uint8_t i = 0; i < DEVICE_COUNT; i++) {
+            if (DEVICES[i].manualSwitch != manual || !DEVICES[i].relay) continue;
+            any = any || enabled[i];
+            if (status[i] == RelayStatus::Failing) worst = RelayStatus::Failing;
+            else if (status[i] == RelayStatus::Pending && worst == RelayStatus::Synced) worst = RelayStatus::Pending;
+        }
+        if (!any) return LED_OFF;
+        return worst == RelayStatus::Failing ? LED_FLASH_FAST : (worst == RelayStatus::Pending ? LED_FLASH : LED_ON);
+    };
+    out.led[3] = group(CSW_DECOR);   // L4
+    out.led[6] = group(CSW_FLASH);   // L7
+    out.hornState = group(CSW_HORN);
+
+    out.led[0] = !auto_on ? LED_OFF : (board_ok ? LED_ON : LED_FLASH_FAST);    // L1 automatic mode
+    out.led[5] = !panic ? LED_OFF : (board_ok ? LED_ON : LED_FLASH_FAST);      // L6 panic
+    out.led[7] = handleFog(in, out, want[DEV_FOG], enabled[DEV_FOG]);          // L8
 }
 
 // ----------------------------------------------------------------------- fog
-// Switch ON = keep fogging whenever possible: start whenever the machine is ready and idle.
-// Switch OFF (or switch state unknown) = stop.
-led_state_t ControlLogic::handleFog(const ControlInputs& in, ControlOutputs& out) {
-    const bool want = in.switchesValid && in.sw[CSW_FOG];
-
+// `want` = fogging is wanted right now (manual switch, panic, or the on-phase of the auto pattern): start whenever the
+// machine is ready and idle. Not wanted (or switch state unknown) = stop. `enabled` = a source wants fog at all (it is
+// only then that an unavailable machine is worth a fast flash).
+led_state_t ControlLogic::handleFog(const ControlInputs& in, ControlOutputs& out, bool want, bool enabled) {
     if (in.switchboardConnected && in.fogStateValid && in.fogControlValid) {
         const bool fogging = in.fogControl == 1 || in.fogState == 3;
         if (want && in.fogState == 2 && !fogging) {
@@ -495,61 +566,14 @@ led_state_t ControlLogic::handleFog(const ControlInputs& in, ControlOutputs& out
 
     // L8: off = machine not connected, flash = heating, on = ready, pulse = fogging,
     // fast flash = fogging is wanted but impossible (machine or switchboard not available).
-    if (!in.switchboardConnected || !in.fogStateValid) return want ? LED_FLASH_FAST : LED_OFF;
+    if (!in.switchboardConnected || !in.fogStateValid) return enabled ? LED_FLASH_FAST : LED_OFF;
     switch (in.fogState) {
-        case 0: return want ? LED_FLASH_FAST : LED_OFF;
+        case 0: return enabled ? LED_FLASH_FAST : LED_OFF;
         case 1: return LED_FLASH;
         case 2: return LED_ON;
         case 3: return LED_PULSE;
         default: return LED_FLASH_FAST;
     }
-}
-
-// --------------------------------------------------------------------- panic
-// SW2 ON: bells / horns (PANIC_RELAYS) go on one at a time, in random order, for random times
-// with random pauses. SW2 OFF: they are all switched off (forced for PANIC_CLEANUP_MS, after
-// that those relays are left alone again, they may be used for other things).
-led_state_t ControlLogic::handlePanic(const ControlInputs& in, ControlOutputs& out) {
-    const bool active = in.switchesValid && in.sw[CSW_PANIC];
-
-    if (!active) {
-        if (panicActive_) {
-            panicActive_ = false;
-            panicCurrent_ = 0;
-            panicCleanup_ = true;
-            panicCleanupUntil_ = in.now + PANIC_CLEANUP_MS;
-        }
-        if (panicCleanup_ && due(in.now, panicCleanupUntil_)) panicCleanup_ = false;
-    } else {
-        panicCleanup_ = false;
-        if (!panicActive_) {
-            panicActive_ = true;
-            panicCurrent_ = 0;
-            panicNextAt_ = in.now;
-        }
-        if (due(in.now, panicNextAt_)) {
-            if (panicCurrent_ != 0) {  // pause
-                panicCurrent_ = 0;
-                panicNextAt_ = in.now + PANIC_GAP_MIN_MS + (in.random % PANIC_GAP_SPAN_MS);
-            } else {  // next one: random, but not the same twice in a row
-                uint8_t idx = (in.random >> 8) % PANIC_RELAY_COUNT;
-                if (PANIC_RELAY_COUNT > 1 && PANIC_RELAYS[idx] == panicLast_) idx = (idx + 1) % PANIC_RELAY_COUNT;
-                panicCurrent_ = PANIC_RELAYS[idx];
-                panicLast_ = panicCurrent_;
-                panicNextAt_ = in.now + PANIC_ON_MIN_MS + ((in.random >> 16) % PANIC_ON_SPAN_MS);
-            }
-        }
-    }
-
-    if (panicActive_ || panicCleanup_) {
-        for (uint8_t k = 0; k < PANIC_RELAY_COUNT; k++) {
-            reconcileRelay(in, out, PANIC_RELAYS[k], panicActive_ && panicCurrent_ == PANIC_RELAYS[k]);
-        }
-    }
-
-    // L6: on = panic active; fast flash = active but the switchboard cannot be reached.
-    if (!panicActive_) return LED_OFF;
-    return (in.switchboardConnected && in.relaysValid) ? LED_ON : LED_FLASH_FAST;
 }
 
 // ---------------------------------------------------------------------- step
@@ -566,12 +590,7 @@ void ControlLogic::step(const ControlInputs& in, ControlOutputs& out) {
     handleDuration(in, out);
     autoPrepare(in, out);
 
-    const bool sw_ok = in.switchesValid;
-    out.led[3] = reconcileRelay(in, out, RELAY_DECORATIVE_LIGHT, sw_ok && in.sw[CSW_DECOR]);  // L4
-    out.led[6] = reconcileRelay(in, out, RELAY_FLASHING_LIGHT, sw_ok && in.sw[CSW_FLASH]);    // L7
-    out.sirenState = reconcileRelay(in, out, RELAY_SIREN, sw_ok && in.sw[CSW_SIREN]);         // no LED, display only
-    out.led[7] = handleFog(in, out);                                                          // L8
-    out.led[5] = handlePanic(in, out);                                                        // L6
+    handleDevices(in, out);
 
     // Launcher status and L2 (ready to launch).
     const bool known = in.launcherConnected && in.prepValid;

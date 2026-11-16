@@ -163,3 +163,9 @@
 #define STR_HELP_1 "Look inside the"
 #define STR_HELP_2 "bucket: anything"
 #define STR_HELP_3 "in it = Full."
+
+// ---- Start-up splash screen (title max 11 characters, subtitle max 16, continue offer max 17) ----
+// The subtitle is written in capitals, like the owner's example picture. "push = continue" is shown at the top of the screen, over the picture.
+#define STR_SPLASH_TITLE "nut-o-matic"
+#define STR_SPLASH_SUBTITLE "PEPPERNUT MAKER"
+#define STR_SPLASH_CONTINUE "push = continue"

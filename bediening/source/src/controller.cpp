@@ -14,7 +14,7 @@ static const char* TAG = "CTRL";
 
 // The logic indexes switches by number: it must match SwitchId.
 static_assert(SW2_PANIC == CSW_PANIC && SW3_FOG == CSW_FOG && SW4_FLASH == CSW_FLASH && SW5_AUTO == CSW_AUTO &&
-                  SW6_DECOR == CSW_DECOR && SW7_SIREN == CSW_SIREN && SW8_LAUNCH == CSW_LAUNCH,
+                  SW6_DECOR == CSW_DECOR && SW7_HORN == CSW_HORN && SW8_LAUNCH == CSW_LAUNCH,
               "control_logic.h switch indices differ from SwitchId");
 
 namespace {
@@ -257,6 +257,7 @@ void controller_update(uint32_t now) {
 
     for (uint8_t i = 0; i < outs.cmdCount; i++) execute(outs.cmds[i]);
 
+    leds_set_state(LED_L1_AUTOMATIC_MODE, outs.led[0]);
     leds_set_state(LED_L2_READY_TO_LAUNCH, outs.led[1]);
     leds_set_state(LED_L4_DECORATIVE_LIGHTING, outs.led[3]);
     leds_set_state(LED_L6_PANIC_MODE, outs.led[5]);
@@ -307,7 +308,8 @@ void controller_home_inputs(HomeInputs* h) {
     h->panicLed = outs.led[5];  // L6
     h->flashLed = outs.led[6];  // L7
     h->lampLed = outs.led[3];   // L4
-    h->sirenLed = outs.sirenState;
+    h->hornLed = outs.hornState;
+    h->autoLed = outs.led[0];
     h->dispenserValid = last_dispenser_valid;
     h->dispenserOn = last_dispenser_on;
     h->message = last_msg;

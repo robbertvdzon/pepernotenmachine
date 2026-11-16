@@ -71,7 +71,7 @@ int main(int argc, char** argv) {
         in.lampLed = t >= 3000 ? LED_ON : LED_OFF;
         in.fogLed = t < 6000 ? LED_FLASH : (t < 20000 ? LED_ON : LED_PULSE);
         in.panicLed = (t >= 40000 && t < 45000) ? LED_ON : LED_OFF;
-        in.sirenLed = (t >= 12000 && t < 14000) ? LED_ON : LED_OFF;
+        in.hornLed = (t >= 12000 && t < 14000) ? LED_ON : LED_OFF;
         // launcher script
         if (t < 1000) { in.launcher = LauncherStatus::Offline; in.prepValid = false; }
         else if (t < 2000) { in.launcher = LauncherStatus::Preparing; in.prepValid = true; in.prep = 0; }

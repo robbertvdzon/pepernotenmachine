@@ -9,50 +9,53 @@ ride, and is a different person each year (the system is used once a year). So t
 do the work; the display is for set-up and for confirming things at the start. Keep everything as simple
 as possible.
 
-## Status (v0.16)
+## Status (v0.20)
 
-Verified on the real hardware: display, encoder, switches, LEDs, BLE scan/select/save/reconnect,
-setup flow, relays/lights, the colors after the byte-order fix, the launcher check overlay,
-the automatic preparation, launch + automatic re-arm (re-arm delay is now 4 s, **not re-tested yet**) and the
-animated home screen, scrolling menus and the Maintenance menu (release, dispense, motor control). Panic works "ok-ish" and still
-has to be defined properly.
+### Verified on the real hardware (confirmed by the owner)
+Display, encoder, switches, LEDs, colors, BLE scan / select / save / reconnect, setup flow, the old relays / lights, launcher check overlay (old three-answer
+version), automatic preparation, launch + automatic re-arm, the animated home screen, the scrolling menus, the whole **Maintenance menu (release bucket,
+dispense, motor control)**, the display glitch fix (top line clean) and **LED L9** (pulses while preparing, off when ready, fast flash on error).
 
-**New in v0.16** (not yet run on the hardware): **L9 pulses while the launcher prepares**, goes off when it is ready to launch (L2 on), and flashes fast on a launcher error, like L2. A rejected launch, the check question and the re-arm countdown are not shown on L9.
+### Written, unit-tested and checked off-target, but NOT yet run on the hardware
+- **Start-up splash screen with the owner's artwork (v0.19, see [Splash screen](#splash-screen))**: the picture (160x69, Sinterklaas + cannon + flame + flying nuts) at the top, below it on the picture's own background color the title "nut-o-matic"
+  (red letters, dark outline, overlapping the bottom of the picture a little), the subtitle, the link row "1 [BT] ))) [BT] 2" (badges pulse while waiting, turn green when connected, arcs travel, solid green when both are connected) and the version. No "Connecting..." text: the animation says it. "push = continue" (after 20 s) appears at the very top over the picture.
+- **Automatic mode (SW5) and panic mode (SW2)** with the owner's device table, priorities and patterns (v0.17, see [Devices, automatic mode and panic mode](#devices-automatic-mode-and-panic-mode)).
+  Every wired relay is now driven by the unit; the relay numbers are the owner's latest wiring; SW7 is the airhorn. The old random bells/horns panic is gone.
+- **"Anything in bucket?" check** (Bucket empty = prepare `0x01` with the dispenser, Bucket full = prepare `0x02` without it, Not sure? = help) and the 4 s re-arm delay (v0.13).
+- **Hold to reverse** (`0x03`) on the Dispense screen, the **Bottom switch** screen (`...26aa`) (v0.14).
+- **Dispenser time** screen (read / write `...26af` with read-back) and the run time on the Dispense screen (v0.15); this also added `ble_link_read` (see below).
+- The toast text centering (v0.12.2).
+- "Ask the driver again" paths (error, refused prepare, failed write) and fog control (no fog machine available yet).
 
-**New in v0.15** (not yet run on the hardware): *Dispenser time* in the Maintenance menu (read `...26af`, change with the knob, push saves, the value is READ BACK and compared before "time saved" is shown), and the Dispense screen shows how long the forward run took ("DISPENSING 7.4 s", then "last: 7.4 s") to measure a fill time. `ble_link` got an on-demand read (`ble_link_read`). Start-up splash screen: see the TODO (design proposals, nothing built yet).
+### Dependencies on the launcher firmware (owner's side)
+Prepare accepts `0x01` (with dispenser) and `0x02` (without); dispenser control accepts `0x03` (reverse until `0x00`) besides `0x01` / `0x02` / `0x00`; the dispenser time `...26af`
+is read/write (1..60 s, kept by the launcher); the bottom switch `...26aa` and the pull motor `...26a8` notify. **Still to be done there: stop the dispenser and the pull motor by itself
+when the BLE link drops** (the unit also stops them, but cannot when it is the one that died).
 
-**New in v0.14** (not yet run on the hardware): *Hold to reverse* on the Dispense screen (write `0x03`, to un-jam the dispenser; stop = `0x00`), and a read-only *Bottom switch* screen in the Maintenance menu (live reading of the switch at the bottom of the launcher, `...26aa`). The launcher has to accept `0x03` on the dispenser control characteristic.
+### Loose ends and caveats (read this first when taking over)
+- **Not compile-checked here: `src/ble_link.cpp`** (needs NimBLE, which the sandbox does not have). v0.15 added `ble_link_read` and a read path in `drain_commands`; it was re-read
+  carefully but never compiled. Everything else that touches LVGL was syntax-checked against LVGL 9.1 and 9.6 with stubs (`test/offtarget/stubs/Arduino.h`); `display.cpp` needs LovyanGFX and is not.
+- **The illumination "grid failure" disruption in automatic mode is my guess** (off 0.4..1.0 s, on 0.2..0.5 s, off 0.3..0.8 s, then on for 30..90 s): tune it in `control_patterns.h`.
+- **Splash screen: artwork is in (v0.19).** The owner's LVGL 8 converter output (`lv_img_dsc_t`, indexed) does not work with LVGL 9, so the bitmap is generated from the original image by `tools/make_splash_art.py` (source image kept in `tools/preview/splash_art_source.jpeg`).
+- **Toast (minor, owner does not mind):** while it slides in (0.2 s) its top edge can be drawn wrong, and because the toast area is never re-sent in the steady state the damage stays until the toast changes.
+  Options: no slide, or one forced clean redraw after the slide, or a fade (TODO).
+- **Display efficiency (not changed):** the launcher band is flushed ~28x a second instead of the intended 12 (the progress value changes every ~25 ms); quantizing it to the bar's 78 pixels would remove ~60 % of the traffic (TODO).
+- A pending question list is under [Open questions](#open-questions), everything else that is open is in the [TODO](#todo) (Settings menu, Dutch translation, SW9..12 / L10..12, menu structure review, hardware checklist, optional ideas).
 
-**New in v0.13:** the launcher check asks **"Anything in bucket?"** (Bucket empty / Bucket full / Not sure?) instead of the machine state; both answers prepare the launcher (empty = `0x01` with the dispenser, full = `0x02` without), there is no more "ready without moving" shortcut. Needs the launcher firmware to accept `0x02` on prepare. Not yet run on the hardware.
+### Display notes (what was learned, so it is not repeated)
+- LVGL with this project's defaults does **not** pad canvas rows (`LV_DRAW_BUF_STRIDE_ALIGN` = 1); the home canvases are 160 px wide anyway and a compile-time check guards the stride.
+- The top-line glitch was caused by the home screen being **scrollable**: the toast sliding in from below the screen edge made LVGL draw a scrollbar. Screens must never scroll, and nothing may hang partly off-screen
+  (the toast now slides inside a fixed box). Partial flushes (the default) are clean; **sending the full frame on every flush is worse** (the glitch returns and flickers); a lower SPI speed changes nothing.
+- `test/offtarget/panel_check.cpp` applies every LVGL flush to an emulated panel (like `display.cpp`) and checks areas, panel == frame buffer, incremental frame == full redraw, and that the screen never scrolls.
 
-**New in v0.12:** *Motor control* in the Maintenance menu (see [Maintenance](#maintenance)): run the launcher's pull motor by
-hand, hold the knob on "Hold to go up" / "Hold to go down" (speed +512 / -512 on the wire, not shown on screen). Same safe-stop rules as Dispense, plus a motor never reverses
-on the fly. Also: a knob released after the screen changed (e.g. the Back button while holding) no longer clicks the
-new screen's focused row.
-
-**Since v0.11** (unit-tested and checked off-target on LVGL 9.1 and 9.6; **Maintenance (release, dispense, motor) and the scrolling menus are verified on the hardware by the owner**):
-- **Maintenance menu** (Menu -> Maintenance): *Release bucket* (with confirmation), *Dispense* and *Motor control* (hold the knob).
-  It pauses all automation; see [Maintenance](#maintenance). Needs the launcher firmware to accept `0x02` on the
-  dispenser control characteristic (done on the client side) and to stop the dispenser itself when the BLE link drops.
-- **Scrolling menus**: lists with more rows than fit scroll with the encoder (main menu now has 4 entries).
-- **Display glitch (a bright line with dashes on the top row of the screen, rows of the toast showing up elsewhere): fixed
-  and verified on the panel (v0.12.1).** Cause: the home screen was scrollable, and while the toast slid in from below the
-  screen edge LVGL drew a scrollbar (tall narrow flush windows). Now nothing on the home screen scrolls and the toast slides
-  *inside* a fixed box. (v0.11 blamed the canvas stride: that was wrong, with this project's LVGL defaults rows are not
-  padded; the 160 px canvases stay, harmless and compile-time guarded.)
-  - Tested on the panel: partial flush (the default) is clean; **sending the whole frame on every flush is worse** (the top
-    line comes back and flickers; that diagnostic was removed again); a lower SPI speed (8 MHz) changes nothing; the menus
-    and scrolling look and run great.
-  - `test/offtarget/panel_check.cpp` applies every LVGL flush to an emulated panel (like `display.cpp`) and checks: areas inside
-    the screen, panel == frame buffer, incremental frame == full redraw, screen never scrollable. It passes and fails on the
-    old behavior.
-  - v0.12.2: the toast text sat low in its bar (3 rows of margin above, 1 below, so it looked cut off at the bottom of the
-    screen); it is centered now (`HOME_TOAST_TEXT_DY`). Not yet seen on the panel.
-
-Written and unit-tested but **not yet verified on the hardware**: the "ask the driver again" paths (error,
-refused prepare, failed write), fog control (no fog machine available yet), everything new in v0.11 and v0.12.
-
-Not done: see [TODO](#todo) (SW5 "automatic mode", panic, settings, wiring, ...) and [open questions](#open-questions).
+### Change history (short)
+- **v0.20** splash: "Connecting..." line removed (title / subtitle / link row moved down), "push = continue" at the top over the picture on a semi-transparent patch, arcs centered between the badges (host test measures the air on both sides), **Dutch build**: `include/ui_strings_nl.h` + PlatformIO environment `arduino_nano_esp32_nl` (`-D UI_LANG_NL`).
+- **v0.19** splash with the artwork at the top (`splash_art.*` generated by `tools/make_splash_art.py`, RGB565 in flash, 22 KB), splash background = the picture's bottom-row color, title overlapping the picture, tighter link row (20 px), "Connecting..." left aligned, version hidden while "push = continue" shows.
+- **v0.18** start-up splash screen (text-only): `splash_model.*`, `splash_sprites.*`, `ui_splash.cpp`, `splash_config.h`, `version.h`, two splash fonts; `ui.cpp` starts on it; the knob push that ends the splash no longer also opens the menu.
+- **v0.17** automatic and panic mode, device table and pattern engine (`control_patterns.h`, `pattern_runner.*`), SW7 = airhorn, new relay numbers, L1 = auto, L6 = panic, auto tile.
+- **v0.16** L9 = launcher preparing. **v0.15** dispenser time, run time on the Dispense screen, `ble_link_read`. **v0.14** hold to reverse, bottom switch screen.
+- **v0.13** "Anything in bucket?" check and the new prepare values. **v0.12** motor control, stray-click guard, toast fixes. **v0.11** Maintenance menu, scrolling menus.
+- **v0.10** animated home screen. Earlier: setup flow, BLE link, check overlay, launcher logic.
 
 ## Build
 
@@ -74,15 +77,18 @@ Host tests (pure logic, no hardware needed):
 
 ```bash
 g++ -std=c++11 -Wall -Wextra -Iinclude test/host/test_logic.cpp src/ble_devices.cpp -o /tmp/test_logic && /tmp/test_logic
-g++ -std=c++11 -Wall -Wextra -Iinclude test/host/test_control.cpp src/control_logic.cpp src/ble_devices.cpp -o /tmp/test_control && /tmp/test_control
-g++ -std=c++11 -Wall -Wextra -Iinclude test/host/test_home.cpp src/home_model.cpp src/home_sprites.cpp src/gfx.cpp src/control_logic.cpp src/ble_devices.cpp -o /tmp/test_home && /tmp/test_home
+g++ -std=c++11 -Wall -Wextra -Iinclude test/host/test_control.cpp src/control_logic.cpp src/pattern_runner.cpp src/ble_devices.cpp -o /tmp/test_control && /tmp/test_control
+g++ -std=c++11 -Wall -Wextra -Iinclude test/host/test_patterns.cpp src/pattern_runner.cpp -o /tmp/test_patterns && /tmp/test_patterns
+g++ -std=c++11 -Wall -Wextra -Iinclude test/host/test_splash.cpp src/splash_model.cpp src/splash_sprites.cpp src/gfx.cpp -o /tmp/test_splash && /tmp/test_splash
+g++ -std=c++11 -Wall -Wextra -Iinclude test/host/test_home.cpp src/home_model.cpp src/home_sprites.cpp src/gfx.cpp src/control_logic.cpp src/pattern_runner.cpp src/ble_devices.cpp -o /tmp/test_home && /tmp/test_home
 ```
 
 Off-target checks on a host build of LVGL 9.1 and 9.6, built with the same 64-byte canvas stride as the unit
 (needs git, gcc, python3; the first run compiles LVGL and takes several minutes): `test/offtarget/run.sh /tmp/out`.
 `test/offtarget/main.cpp` plays a scripted launcher session on the home screen; `test/offtarget/panel_check.cpp` is the flush consistency check described under Status. `test/offtarget/ui_main.cpp` runs the REAL
 `ui.cpp` (menus, maintenance screens, scrolling, hold-to-dispense) against a stubbed controller and asserts what the UI asks
-of it. Both write PPM frames for a visual check.
+of it. Both write PPM frames for a visual check; `run.sh` also plays the whole session once more with `-DUI_LANG_NL`. `ui_main` also plays the splash twice (both devices connect; one never connects and the driver pushes to continue) and checks that the splash never
+touches the screen edges, never flushes the full frame and stays far below the home band's traffic; `run.sh` compiles LVGL in parallel.
 `test/host/render_home.cpp` renders all sprites without LVGL. `test/offtarget/stubs/Arduino.h` is a tiny Arduino stand-in
 for `g++ -fsyntax-only` checks of `ui.cpp` / `controller.cpp`.
 
@@ -92,17 +98,17 @@ Code must stay C++11-compatible (older Arduino cores) and work with LVGL 9.1 .. 
 
 | Control | Behavior |
 | --- | --- |
-| Boot | Straight into the setup screen if the launcher or the switchboard is not saved yet (Back = home) |
+| Boot | Straight into the setup screen if the launcher or the switchboard is not saved yet (Back = home); otherwise the start-up splash until both devices are connected |
 | Launcher check | Appears by itself once the launcher is connected and its state must be confirmed (see below) |
 | Encoder on the home screen | Turning does nothing. **Push** = menu (Check launcher, Maintenance, Setup). There is no hint on the screen on purpose |
 | Encoder in menus | Turn = move focus (long lists scroll), push = select. Flip `ENCODER_DIRECTION_INVERT` in `config.h` if reversed |
 | SW1 Back | One screen back. On the scan screen it also stops the scan. Does nothing on the home screen and on the check overlay (it must be answered) |
-| SW2 Panic | Fun: fires bells/horns (relays `PANIC_RELAYS`) one at a time in random order while ON, all off when OFF. Unrelated to the launcher |
-| SW3 Fog | ON = keep fogging whenever the machine is ready; OFF = stop |
-| SW4 Flashing light | Relay `RELAY_FLASHING_LIGHT` |
-| SW5 Automatic mode | **Not defined yet** (meant for automatically activating horns/flashlights and such; NOT the launcher). Logged and ignored |
-| SW6 Decorative lighting | Relay `RELAY_DECORATIVE_LIGHT` |
-| SW7 Siren | Momentary: relay `RELAY_SIREN` follows the button |
+| SW2 Panic | Panic mode: flashlights, inside lights and fog on, illumination blinks, siren pulses, see [Devices](#devices-automatic-mode-and-panic-mode). Unrelated to the launcher |
+| SW3 Fog | ON = keep fogging whenever the machine is ready (manual, beats automatic and panic mode); OFF = follow the modes |
+| SW4 Flashlights | The three outside flashlights (red, orange right front, orange left front) steady on (beats automatic and panic mode) |
+| SW5 Automatic mode | Automatic mode: flashlights, illumination and fog run their patterns, see [Devices](#devices-automatic-mode-and-panic-mode). NOT the launcher |
+| SW6 Illumination | The exterior illumination steady on (beats automatic and panic mode) |
+| SW7 Airhorn | Momentary: the airhorn relay follows the button (never part of automatic or panic mode) |
 | SW8 Launch | Fires immediately **if** the launcher is ready, otherwise shows why not (toast on the home screen, L2 flashes fast). Blocked while a maintenance screen is open |
 
 Setup: Menu -> Setup -> Launcher or Switchboard -> **Scan & select** (devices of that kind: address, signal,
@@ -190,21 +196,60 @@ Safety rules (all in `control_logic.cpp`, pure and unit-tested; mutation-tested)
   connected launcher, a *current* state, idle, no question open, and the belief "armed". A rejected launch sends
   nothing and says why ("not ready yet", "still preparing", "check launcher", "launcher offline", ...).
 - The next prepare is only sent after the launch write was reported OK.
-- Relays and fog are **state settings**: the switch position is the truth; the wanted state is compared with what
-  the switchboard reports and re-sent (every 0.5 s) until it matches. This also re-applies them after a reconnect
+- Relays and fog are **state settings**: what the switches / modes want (see Devices) is compared with what
+  the switchboard reports and re-sent (every 0.5 s, at once when the wish changes) until it matches. This also re-applies them after a reconnect
   (the switchboard turns everything off when its last client disconnects).
-- Unknown switch state (expander failure): nothing is changed, fog is stopped.
+- Unknown switch state (expander failure): no relay is changed, fog is stopped, SW2 / SW5 count as off.
 - Stale state is never shown as current: on disconnect all values of that device become invalid.
+
+### Devices, automatic mode and panic mode
+
+Everything the switchboard drives is in one table (`include/control_patterns.h`, relay numbers in `control_config.h`). Per device: the
+dedicated manual switch, what it does in **automatic mode (SW5)** and in **panic mode (SW2)**.
+
+| Device | Physical placement | Voltage | Connection | Activation | Behaviour in auto mode (SW5) | Behaviour in panic mode (SW2) |
+| --- | --- | --- | --- | --- | --- | --- |
+| Red flashlight | Outside right back | 220 Vac | Relay 1 | SW4 / Auto / Panic | Repeating 3 s on, 1 s off, both with a random variation of up to 2 s extra | On |
+| Orange flashlight | Inside | 220 Vac | Relay 2 | Panic mode | Off | On |
+| Strobe light | Inside | 220 Vac | Relay 3 | Panic mode | Off | On |
+| Illumination | Exterior | 220 Vac | Relay 4 | SW6 / Auto / Panic | Continuously on, with a short disruption every now and then (simulates a grid power failure) | Blink 1 s on, 1 s off |
+| Orange flashlight | Outside right front | 24 Vdc | Relay 5 | SW4 / Auto / Panic | Repeating 1 s off, 3 s on, both with a random variation of up to 2 s extra | On |
+| Airhorn | Outside right front | 24 Vdc | Relay 6 | SW7 | Off | Off |
+| Siren | Outside left back | 12 Vdc | Relay 7 | Panic mode | Off | Briefly on for 400..600 ms (random), once every 10 s (a very loud siren) |
+| Orange flashlight | Outside left front | 12 Vdc | Relay 8 | SW4 / Auto / Panic | Repeating 2 s on, 2 s off, 4 s on, 2 s off | On |
+| Fog machine | Inside | 220 Vac | Switchboard fog output (D9) | SW3 / Auto / Panic | Randomly on for 2 s, once per minute | On |
+
+(The relay numbers are the owner's current wiring; the physical placement column is for reference only, the software does not use it.)
+
+**Priority**, decided per device, every control step (`ControlLogic::handleDevices`):
+1. its dedicated manual switch is ON -> steady on, whatever SW2 and SW5 say (e.g. SW4 on = the three flashlights are always on; SW6 on = the illumination
+   is steady even in panic mode; SW3 on = no 2 s fog bursts);
+2. panic mode (SW2) is ON -> the device's panic behaviour (also when that is "off"): **panic beats automatic mode**;
+3. automatic mode (SW5) is ON -> its auto behaviour;
+4. otherwise off. Every wired relay is driven all the time, so leaving a mode switches its devices off again by itself. When another source takes over, a
+   pattern starts again at its first phase.
+
+**Patterns** (`control_patterns.h`, "how to edit" is at the top of that file): a pattern is a cycle of phases; a phase is "on" or "off" for a duration drawn at
+random between `minMs` and `maxMs` (equal = fixed). A pattern with `periodMs` > 0 lasts exactly that long: its last phase gets whatever is left of the period
+(this gives "once every 10 seconds" for the siren and "once per minute at a random moment" for the fog machine, without drift). The patterns in use:
+red flashlight `{3..5 s on, 1..3 s off}`; orange right front `{1..3 s off, 3..5 s on}`; orange left front `{2 s on, 2 s off, 4 s on, 2 s off}`; illumination (auto)
+`{30..90 s on, 0.4..1.0 s off, 0.2..0.5 s on, 0.3..0.8 s off}` (**my guess of a "short disruption": tune it**); illumination (panic) `{1 s on, 1 s off}`;
+siren (panic) `{0.4..0.6 s on, rest of 10 s off}`; fog (auto) `{0..58 s off, 2 s on, rest of 60 s off}`.
+New patterns or devices: add a `Phase` array + `Pattern`, a `DeviceId` and a row in `DEVICES`; the tests (`test_patterns.cpp`, the spec test in `test_control.cpp`) check the table.
+Siren / flashlights use the plain relay on/off (the switchboard's own blink mode is not used any more, so the random variation is possible).
+
+LEDs and the home screen: L1 = SW5, L6 = SW2 (fast flash = switchboard unreachable), L7 / L4 = the flashlight / illumination group is active (any source) and in
+sync; the "airhorn" tile follows SW7, the "auto" tile follows SW5, the panic tile SW2.
 
 ### LEDs
 
 | LED | Meaning |
 | --- | --- |
-| L1 | Automatic mode (SW5): not defined yet, off |
+| L1 | Automatic mode (SW5): on = automatic mode on, fast flash = on but the switchboard cannot be reached |
 | L2 | Launcher: on = ready, pulse = preparing, slow flash = waiting for the driver's answer or re-arming, fast flash = error (also 1.5 s after a rejected launch) |
 | L3 / L5 | Launcher / switchboard connection: off = nothing saved, flash = searching or connecting, on = connected, fast flash = error |
-| L4 / L7 | Decorative lighting / flashing light: on = relay confirmed on, flash = wanted but not confirmed, fast flash = not confirmed after 3 s, off = off |
-| L6 | Panic: on = active, fast flash = active but the switchboard cannot be reached |
+| L4 / L7 | Illumination / flashlights: on = active (their switch, panic or automatic mode) and every relay follows, flash = a relay does not follow for > 0.7 s, fast flash = for > 3 s, off = not active |
+| L6 | Panic (SW2): on = panic mode on, fast flash = on but the switchboard cannot be reached |
 | L8 | Fog: off = machine not connected, flash = heating, on = ready, pulse = fogging, fast flash = fog wanted but impossible |
 | L9 | Launcher busy: **pulse = preparing** (from the start of a preparation until it is done), off = ready to launch (and in every other state), fast flash = launcher error (like L2). L2 turns on when L9 turns off. |
 | L10..L12 | Reserved, off |
@@ -216,8 +261,9 @@ Each LED can be OFF, ON, FLASH (1 Hz), FLASH_FAST (5 Hz), PULSE, RAMP_UP, RAMP_D
 | File | Responsibility |
 | --- | --- |
 | `include/config.h` | ALL pins, active levels, I2C address, timings, display/UI/link tunables |
-| `include/control_config.h` | Relay numbers (placeholders, nothing is wired yet), panic relays and all control timings: **edit here** |
-| `include/ui_strings_en.h`, `ui_strings.h` | ALL display texts in one file, with compile-time length checks; translate by copying to `ui_strings_nl.h` and building with `-D UI_LANG_NL` (needs a branch already present in `ui_strings.h`). Logging stays English |
+| `include/control_config.h` | Relay numbers (the owner's wiring), switch indices and all control timings: **edit here** |
+| `include/control_patterns.h`, `pattern_runner.h`, `src/pattern_runner.cpp` | The device table (manual switch / automatic / panic behaviour per device) and the patterns: **edit here for timings**; the pattern engine is pure and host-tested |
+| `include/ui_strings_en.h`, `ui_strings.h` | ALL display texts in one file, with compile-time length checks; `ui_strings_nl.h` is the Dutch version: build it with `pio run -e arduino_nano_esp32_nl` (= `-D UI_LANG_NL`; the default environment builds English). Add another language: copy, translate, add a branch in `ui_strings.h`. Logging stays English |
 | `src/main.cpp`, `src/app.cpp` | `setup()`/`loop()`; init order and one non-blocking pass of the periodic work |
 | `src/control_logic.cpp` | Pure control logic: switches + device states + driver answers -> commands, LEDs, messages |
 | `src/controller.cpp` | Glue: gathers inputs, runs the logic, executes commands via `ble_link_write`, drives L2/L4/L6/L7/L8/L9, stores the launcher belief hint |
@@ -230,6 +276,10 @@ Each LED can be OFF, ON, FLASH (1 Hz), FLASH_FAST (5 Hz), PULSE, RAMP_UP, RAMP_D
 | `src/ui_home.cpp` | The animated home screen on LVGL: 3 canvases (band, tiles, toast) + labels; redraws only what changed |
 | `src/home_model.cpp`, `include/home_model.h`, `home_config.h` | PURE model of the home screen (band state, progress, tiles, toast) and its timings/layout. Host-tested |
 | `src/home_sprites.cpp`, `src/gfx.cpp` | PURE pixel art (RGB565 surfaces, clipped primitives): band animations, tile icons, toast. Host-tested |
+| `include/splash_config.h`, `splash_model.h`, `src/splash_model.cpp` | Start-up splash: timings, layout, colors; PURE model (when it is over, badge states, dots, "push = continue"). Host-tested |
+| `include/splash_sprites.h`, `src/splash_sprites.cpp`, `src/ui_splash.cpp` | The link row pixel art (pure, host-tested) and the LVGL splash screen (title with outline, subtitle, canvas, status line, version) |
+| `include/splash_art.h`, `src/splash_art.cpp`, `tools/make_splash_art.py` | GENERATED: the splash picture as a const RGB565 array (160x69) and the background color for the rest of the splash. Regenerate: `python3 tools/make_splash_art.py <image 160 px wide>` (needs Pillow) |
+| `src/fonts/font_splash_title.c`, `font_splash_sub.c`, `tools/make_splash_fonts.sh`, `include/version.h` | Splash fonts: Passion One Bold 26 px (title) and Barlow Condensed Bold 17 px (subtitle), both SIL OFL, 1-bit; `APP_VERSION` shown on the splash |
 | `src/display.cpp` | LovyanGFX ST7735S + LVGL (full-frame direct render) |
 | `src/fonts/font_pixel_16.c`, `tools/make_fonts.sh` | Generated 8x16 1-bit pixel font (Unscii, public domain, all Latin-1 glyphs) |
 | `src/leds.cpp` | 12 LEDs with animation states (own task, software PWM for the expander LEDs) |
@@ -282,7 +332,7 @@ Each LED can be OFF, ON, FLASH (1 Hz), FLASH_FAST (5 Hz), PULSE, RAMP_UP, RAMP_D
 - **Progress bars are time based** (`PREP_DOWN_MS` = `PREP_UP_MS` = 25 s, nominal) and only decorate: the real launcher
   state decides when a phase ends. The up bar starts after the lock animation and finishes `PREP_UP_MS` after the switch
   from down to up (the lock time is subtracted); all bars are clamped to 100 %.
-- **7 tiles**: fog, panic, flashing light, decorative lamp, siren, auto (SW5, always off until defined), dispenser.
+- **7 tiles**: fog, panic, flashing light, decorative lamp, airhorn, auto (SW5), dispenser.
   Tile state comes from the same states as the LEDs: off (gray), on (steady), active (animated icon), pending (amber blink =
   wanted, not confirmed), problem (red blink). Colors: teal = switchboard, orange = launcher. Fog: ready = steady,
   fogging = drifting dashes. The dispenser tile is active while the launcher's dispenser characteristic reads `0x01`
@@ -294,7 +344,7 @@ Each LED can be OFF, ON, FLASH (1 Hz), FLASH_FAST (5 Hz), PULSE, RAMP_UP, RAMP_D
 
 - Switches: closed = connected to GND = active; expander pull-ups on. LEDs: active LOW.
 - Expander failure: switch state is UNKNOWN (never "unchanged"); the driver retries every 250 ms.
-- Flashing light uses relay state ON (the switchboard also has a blink mode, see questions).
+- Flashlights, siren etc. use plain relay on/off (patterns are timed by this unit, the switchboard's blink mode is not used).
 - SW9..SW12 (A2, A3, A6, A7) are on the schematic but have no function and are not configured.
 - A prepare write that failed is retried with the SAME choice (with / without the dispenser). With a launcher error, "Bucket full" prepares too (without the dispenser).
 - After a launch the next prepare starts 4 s later (`REARM_DELAY_MS`, compile-time checked to be >= the latch re-lock time `LATCH_RELOCK_MS`); the launch write must be confirmed first.
@@ -320,10 +370,12 @@ Each LED can be OFF, ON, FLASH (1 Hz), FLASH_FAST (5 Hz), PULSE, RAMP_UP, RAMP_D
 - [ ] Switch the launcher off/on while ready: no question (kept); switch it off during a preparation: asked again
 - [ ] Launcher error (or refused/failed prepare): L2 and L9 fast flash + overlay with the error title; fix by hand, answer, preparation retried
 - [ ] Menu -> Check launcher: overlay opens, automation stops until answered
-- [ ] SW4 / SW6 / SW7: log `-> switchboard RELAYS [n 1]`, then `RELAYS = ..`; LEDs flash then solid; siren follows the button
-- [ ] Reconnect the switchboard with SW4 ON: the relay is switched on again by itself
-- [ ] SW3 ON with the machine ready: fog starts, L8 pulses, restarts after each burst; OFF stops it
-- [ ] SW2 ON: bells/horns fire in random order one at a time; OFF: all off. SW5: only a warning in the log
+- [ ] SW4 / SW6 / SW7 (manual): log `-> switchboard RELAYS [n 1]`; SW4 = the three outside flashlights (relays 1, 5, 8), SW6 = illumination (relay 4), SW7 = airhorn (relay 6) only while pressed; L4 / L7 on, L7 flashes when a relay does not follow
+- [ ] Reconnect the switchboard with SW4 ON: the relays are switched on again by itself
+- [ ] **Panic (SW2)**: red, both orange outside, orange inside, strobe on; illumination blinks 1 s / 1 s; the siren sounds briefly (400..600 ms) once every ~10 s (TEST WITH EAR PROTECTION); fog on; the airhorn stays off; SW2 off = everything off. L6 on
+- [ ] **Automatic mode (SW5)**: the red flashlight cycles about 3..5 s on / 1..3 s off, the orange right front 1..3 s off / 3..5 s on, the orange left front 2 on / 2 off / 4 on / 2 off; the illumination is on with an occasional short disruption; the fog gives one 2 s burst per minute; siren / airhorn / inside lights stay off. L1 on
+- [ ] Priorities: SW4 on keeps the flashlights steady in automatic and panic mode; SW6 on keeps the illumination steady in panic mode; panic beats automatic mode when both are on; SW3 on = continuous fog
+- [ ] Disrupted switchboard link in automatic / panic mode: L1 / L6 fast flash, everything is set again after the reconnection
 - [ ] Expander disconnected: clear error, retries, no freeze; recovery restores LEDs and switches
 
 ## TODO
@@ -331,10 +383,20 @@ Each LED can be OFF, ON, FLASH (1 Hz), FLASH_FAST (5 Hz), PULSE, RAMP_UP, RAMP_D
 Everything that is still open, grouped. Items marked **(you)** need a decision or hardware work from the owner first.
 
 ### Next up
+- [x] **Start-up splash, text-only version** (v0.18, not yet run on the hardware).
+- [x] **Splash artwork** (v0.19, not yet run on the hardware; the notes below are the original plan, kept for the record): : the owner supplies the image of Sinterklaas and the cannon WITHOUT any text (the example picture has a pixel grid over it and baked-in lettering, so it is not usable as a source). Then: `tools/` script PNG -> static RGB565 `.h` (160 px wide,
+  about 160x70 = 22 KB), place it at the top, re-tune the fonts / positions (title and subtitle may have to get smaller, the whole text block is about 94 px high now), optional animation of the smoke puff / a flying nut. Show renders / a GIF of the real 160x128 result BEFORE changing firmware.
+- [ ] Splash polish (optional): check on the real panel how the title overlaps the picture (Santa's feet / staff), the flame colors and the background seam (RGB565 rounding), animate the smoke / a flying nut; confirm the badge numbering (1 = launcher, 2 = switchboard, as assumed), the subtitle in capitals, the version string (see Open questions), tune the pulse / arc speeds on the real panel.
+- [x] (done, kept for the record) **Start-up splash screen** specification: full-screen logo ("nut-o-matic" / "peppernut maker"; Dutch "noot-o-maat" / "pepernoten maker"),
+  no tiles and no toast, animated "connecting", shown from power-up until BOTH devices are connected and at least 2 s have passed; the OFFLINE band stays for a device that
+  drops out later. The owner has an example image (Sinterklaas with the nut cannon, big red "nut-o-matic" lettering, "PEPERNOTEN LAUNCHER", "1 (BT) ))) (BT) 2", "Connecting...", "v1.0").
+  My first five concepts (`tools/preview/make_splash_preview.py`: Salvo, The automat, Rooftops, Arcade boot, Minimal orbit) were **rejected: the pixel art is too simplistic
+  and nothing like the example**; next time start from the owner's artwork (static bitmap) and only animate the connection part on top. Behavior still to agree on: skip it when
+  setup is incomplete, the check question comes after it, after 20 s offer "push = continue". Technical: a static RGB565 bitmap in flash (a 160x70 area is ~22 KB).
 - [x] Maintenance menu: Release bucket, Dispense, scrolling menus, toast fix (v0.11, verified on the hardware).
 - [ ] **Review the whole menu structure** now that Maintenance exists: does everything still sit in the right menu (Check launcher, Setup, Maintenance), or must something move?
 - [x] Maintenance: **Motor control** (v0.12, verified on the hardware).
-- [x] Maintenance: **Bottom switch** screen and **Hold to reverse** (v0.14, not yet run on the hardware).
+- [x] Maintenance: **Bottom switch** screen and **Hold to reverse** (v0.14, built; not yet run on the hardware).
 - [ ] Toast (low priority, not changed yet): a photo of the unit shows the toast geometry and text as designed, but the top rows of the first letters can look
   distorted, and a glitch seen during the 0.2 s slide stays visible afterwards. **Measured off-target: in the steady state the toast area is never re-sent
   to the panel** (0 flushes/s), so damage done while it slides in is never repaired. LVGL's data is clean (`panel_check`), so the cause is between `flush_cb`
@@ -342,12 +404,6 @@ Everything that is still open, grouped. Items marked **(you)** need a decision o
   clean redraw of the toast area when it has arrived, or a fade. 
 - [ ] Display efficiency (found while measuring, not changed yet): the launcher band is flushed ~28 times a second instead of the intended 12, because the progress bar value
   (1/1000 steps) triggers a redraw every ~25 ms; quantizing it to the bar's pixels (78 steps) would remove ~60 % of the band traffic without any visible change.
-- [ ] **Start-up splash screen** (parked by the owner, to come back to later): full-screen logo ("nut-o-matic" / "peppernut maker"; Dutch "noot-o-maat" / "pepernoten maker"),
-  no tiles and no toast, animated "connecting", shown from power-up until BOTH devices are connected and at least 2 s have passed; the OFFLINE band stays for a device that
-  drops out later. The owner has an example image (Sinterklaas with the nut cannon, big red "nut-o-matic" lettering, "PEPERNOTEN LAUNCHER", "1 (BT) ))) (BT) 2", "Connecting...", "v1.0").
-  My first five concepts (`tools/preview/make_splash_preview.py`: Salvo, The automat, Rooftops, Arcade boot, Minimal orbit) were **rejected: the pixel art is too simplistic
-  and nothing like the example**; next time start from the owner's artwork (static bitmap) and only animate the connection part on top. Behavior still to agree on: skip it when
-  setup is incomplete, the check question comes after it, after 20 s offer "push = continue". Technical: a static RGB565 bitmap in flash (a 160x70 area is ~22 KB).
 - [ ] Optional: understand why a full-frame flush brings the top-line glitch back (tearing? how LovyanGFX handles big `setAddrWindow` + `writePixels` transfers); not needed while partial flushes work.
 - [ ] **(you)** Launcher firmware: stop the dispenser **and the pull motor** by itself when the BLE link drops (the unit also stops them, but cannot when it is dead).
 - [ ] Motor control: decide whether the unit should refuse "down" at some point (no end stop / limit is known to it), or whether the launcher enforces limits.
@@ -355,20 +411,17 @@ Everything that is still open, grouped. Items marked **(you)** need a decision o
 - [x] Dispenser time from the Maintenance menu + run time on the Dispense screen (v0.15, not yet run on the hardware).
 
 ### Define / decide (needs the owner)
-- [ ] **SW5 "Automatic mode"**: meant for automatically activating horns/flashlights and such, NOT the launcher: triggers, timings, which relays; implement + tests; light L1. The tile on the home screen stays off until then.
-- [ ] **Panic** (SW2): define it properly. Today: bells/horns fire one at a time in random order while ON; the tile/LED are placeholders.
-- [ ] **Siren**: confirm "relay follows the button" or define a pulse/hold duration.
-- [ ] **Flashing light**: decide plain ON or the switchboard's blink mode (relay state 2 + interval).
 - [ ] **Back button (SW1)**: decide whether it has an operational role besides navigation.
 - [ ] **Dispenser**: confirm that the launcher starting the dispenser during preparation is the desired final behavior.
 - [ ] **Settings on the TFT**: decide which parameters are adjustable (dispenser duration `...26af`, fog burst duration, ...) and persist them (NVS). A "Settings" entry fits in the menu. Note: the dispenser duration is also used by the automatic cycle.
-- [ ] **Wiring**: set the real relay numbers in `control_config.h` when the equipment is wired (lights, siren, panic bells/horns); decide about the MOSFETs, digital outputs/inputs and analog inputs (unused).
+- [x] Automatic mode (SW5) and panic mode (SW2) with the owner's device table (v0.17, not yet run on the hardware); relay numbers are the owner's current wiring.
+- [ ] Decide about the MOSFETs, digital outputs/inputs and analog inputs (unused).
 - [ ] Decide what to do with SW9..SW12 and L10..L12 (L9 is now the "launcher preparing" LED).
 - [ ] **Freshness policy**: a value is "current" while the link is up (notifications + read on connect). Decide whether a periodic re-read / staleness timeout is wanted for the launch interlock.
 - [ ] Is the prepare timeout of 90 s and the 3 s "refused" window right for the real launcher? 
 
 ### Hardware verification
-- [ ] Panel: "ask the driver again" paths (error, refused prepare, failed write), fog (needs the machine), launch + re-arm with the 4 s delay, panic.
+- [ ] Panel: "ask the driver again" paths (error, refused prepare, failed write), fog (needs the machine), launch + re-arm with the 4 s delay.
 - [ ] Home screen: loop time / responsiveness while the band animates, look and speeds of the animations, dispenser tile.
 - [ ] Free heap with the 40 KB frame buffer, the 38 KB canvases and NimBLE.
 - [ ] Verify the switchboard characteristic UUIDs against its `include/config.h` (currently from its README).
@@ -376,7 +429,8 @@ Everything that is still open, grouped. Items marked **(you)** need a decision o
 - [ ] Final manual hardware checklist (above).
 
 ### Polish / later
-- [ ] Dutch translation: `ui_strings_nl.h` + the `UI_LANG_NL` branch (font already has the accents).
+- [x] Dutch translation (v0.20): `ui_strings_nl.h`, built with `pio run -e arduino_nano_esp32_nl`; all length checks pass and the off-target session renders every screen in Dutch. NOT yet seen on the hardware; **the owner should review the wording** (technical words like launcher / check / setup / prepare are deliberately kept English; "bucket" = "emmer", "switchboard" = "schakelbord", "dispenser time" = "doseertijd", "bottom switch" = "eindschakelaar").
+- [ ] Tune the automatic-mode patterns on the real equipment (esp. the illumination disruption, which is my guess).
 - [ ] Optional: hidden "Demo" menu entry that steps through all band/tile states with fake data and sends nothing.
 - [ ] Optional: use the launcher's `release servo` characteristic as a sanity check at power-up (does the lock position match the answer?). Not reliable after a year in a barn, so never rely on it.
 - [ ] Optional: a latch / "bucket at the bottom" sensor on the machine would give a real armed signal.
@@ -389,24 +443,32 @@ Everything that is still open, grouped. Items marked **(you)** need a decision o
 
 Answered: relays are placeholders and must be easy to change; fog = keep fogging whenever possible; launch immediately,
 no confirmation; the launcher is fully automatic (power-up check, auto prepare, auto re-prepare after ~4 s);
-errors are only shown via L2/display and the driver just confirms; SW5 is not for the launcher; SW2 = fun random
-bells/horns; BLE addresses are public and stable; build environment as above.
+errors are only shown via L2/display and the driver just confirms; SW5 = automatic mode (not the launcher) and SW2 = panic mode as in the device table above; BLE addresses are public and stable; build environment as above.
 
 Assumed, please confirm:
 1. After a **power-up** the driver is always asked, even if the launcher was armed when it was switched off (the stored state is only a pre-selection).
-2. **Siren** = relay follows the button. **Flashing light** = relay plain ON.
-3. **Switch is the truth for relays:** if someone else (e.g. the Flutter app) changes a relay that a switch controls, this unit switches it back within 0.5 s. Wanted, or should the unit only act when its own switch changes?
+2. ~~Siren / flashing light~~ Decided by the owner's device table: SW7 = airhorn (momentary), flashlights = SW4 + patterns.
+3. **This unit is the truth for ALL eight relays:** it drives every wired relay all the time (switches / modes / patterns), so if someone else (e.g. the Flutter app) changes a relay, it is switched back within 0.5 s. Wanted, or should the unit only act when its own switch changes?
 4. ~~Re-arm delay~~ Decided: **4 s** (>= latch re-lock time, compile-time checked). The 4-3-2-1 countdown with the alternating amber/red stripe is the "stand clear" warning; an extra LED/buzzer is not planned.
 
+Splash (assumed in v0.18, please confirm):
+S1. Badge 1 = launcher (orange ring), badge 2 = switchboard (teal ring). S2. The splash shows both badges "connected" for 0.5 s after the last device connected (so it is at least 2 s, and at least 0.5 s after both are up). S3. After 20 s without both devices it offers "push = continue"; a push before that does nothing. S4. The version text is `APP_VERSION` in `include/version.h` ("0.18" now; the example picture shows "v1.0"): which number do you want, and should it come from the build (`-D APP_VERSION=...`)? S5. Subtitle text in capitals ("PEPPERNUT MAKER" / "PEPERNOTEN MAKER"), as in the example. S6. The splash background is the picture's bottom-row color (blue-gray), not black like the rest of the UI. S7. The picture's average background is lighter at the top than at the bottom (a gradient); I matched the bottom edge so the picture melts into the lower part.
+
 Open (see also the TODO list):
-5. SW5 automatic mode: what exactly should it do (which relays, when, how long)?
+5. Is my guess for the illumination's grid-failure disruption OK (off 0.4..1.0 s, on 0.2..0.5 s, off 0.3..0.8 s, then on for 30..90 s)?
 6. Dispenser: is the launcher starting it during preparation the desired final behavior?
 7. Back button (SW1): navigation only, or should it also cancel/stop something?
 8. Which parameters should be adjustable on the TFT (dispenser duration, fog burst duration, ...)?
-9. Which equipment will be on which relay once wired (flashing light, decorative lighting, siren, panic bells/horns)?
+9. ~~Relay numbers~~ Done: see the device table.
 10. What should SW9..SW12 and L10..L12 be used for?
 11. Is the prepare timeout of 90 s and the 3 s "refused" window right for the real launcher?
-12. Should the pull-motor characteristic (now notifiable) be used, e.g. to show "motor running" or to detect a stuck motor?
+12. ~~Pull-motor characteristic~~ Used by Motor control (read / write / notify); a "stuck motor" detection is not planned.
+
+## Splash screen
+Layout (160x128): picture rows 0..68, title label y=61 (its ink starts ~3 px lower, so only the tall letters and the outline reach into the picture), subtitle y=80, link row canvas y=99 (96x20), version bottom right; "push = continue" at y=2 over the picture. All in `splash_config.h`. The background under the picture is the median color of the picture's bottom row, converted exactly like the picture's pixels (`SPLASH_ART_BG_*`), so there is no seam.
+`ui.cpp` starts on `Screen::Splash` when both devices are saved (otherwise on Setup, no splash). Each loop pass `splash_step` feeds `SplashModel` with `ble_link_state()` of the two devices; when the model says "over" the UI enters the home screen, and only there the
+"Anything in bucket?" check can open (it is blocked on the splash). Back and the encoder do nothing on the splash; a push only counts after the "push = continue" offer. The link row is a 96x22 canvas redrawn at 12 fps (about 25 k px per second to the panel; the home band is 150 k);
+the rest is static labels. Texts: `STR_SPLASH_*` in `ui_strings_en.h` / `ui_strings_nl.h` ("noot-o-maat" / "PEPERNOTEN MAKER" / "druk = doorgaan"; title max 11 letters, subtitle 16; the Dutch splash is rendered by the off-target run). Fonts are regenerated with `tools/make_splash_fonts.sh` (OFL fonts, download instructions inside).
 
 ## Design study tools
 `tools/preview/make_splash_preview.py` draws my first (rejected) start-up splash concepts (GIFs + a contact sheet, English or Dutch: `python3 make_splash_preview.py out nl`); only useful as a starting point for the lettering and the badge animation.

@@ -7,6 +7,7 @@
 #include <string.h>
 
 #include "ble_link.h"
+#include "splash_art.h"
 #include "ble_scanner.h"
 #include "controller.h"
 #include "device_store.h"
@@ -74,7 +75,36 @@ const ScanEntry& ble_scanner_entry(size_t) { static ScanEntry e; return e; }
 
 alignas(64) static uint8_t fb[160 * 4 * 128];
 static uint32_t stride = 0;
-static void flush_cb(lv_display_t* d, const lv_area_t*, uint8_t*) { lv_display_flush_ready(d); }
+// What the panel would be sent: counted per flush (LVGL calls this once per dirty area).
+static uint32_t s_flush_n = 0, s_flush_px = 0, s_flush_full = 0;
+static void flush_cb(lv_display_t* d, const lv_area_t* a, uint8_t*) {
+    const int w = a->x2 - a->x1 + 1, h = a->y2 - a->y1 + 1;
+    s_flush_n++;
+    s_flush_px += static_cast<uint32_t>(w * h);
+    if (w >= 160 && h >= 128) s_flush_full++;
+    lv_display_flush_ready(d);
+}
+
+// The start-up splash asks the (stubbed) BLE link for the two connection states.
+static LinkState s_link_l = LinkState::Searching, s_link_s = LinkState::Searching;
+LinkState ble_link_state(DeviceKind k) { return k == DeviceKind::Launcher ? s_link_l : s_link_s; }
+
+
+static uint16_t px(int x, int y) { return reinterpret_cast<const uint16_t*>(fb + y * stride)[x]; }
+// The splash has the artwork's background color below the picture, the home screen a black one.
+static bool is_splash() { return px(2, 125) == SPLASH_ART_BG_565; }
+// The menus draw the focused row in the accent color; the home screen has none.
+static bool has_accent() {
+    const uint16_t a = (uint16_t)(((0x6C >> 3) << 11) | ((0x63 >> 2) << 5) | (0xC7 >> 3));
+    for (int y = 0; y < 128; y++) for (int x = 0; x < 160; x++) if (px(x, y) == a) return true;
+    return false;
+}
+// Nothing may touch the outermost pixel rows / columns of the splash (nothing hangs off the screen).
+static bool splash_edges_clean() {
+    for (int x = 0; x < 160; x++) if (px(x, 127) != SPLASH_ART_BG_565) return false;
+    for (int y = SPLASH_ART_H; y < 128; y++) if (px(0, y) != SPLASH_ART_BG_565 || px(159, y) != SPLASH_ART_BG_565) return false;
+    return true;
+}
 
 static void dump(const char* dir, const char* name) {
     char path[256];
@@ -125,8 +155,93 @@ int main(int argc, char** argv) {
     stride = lv_draw_buf_width_to_stride(160, LV_COLOR_FORMAT_RGB565);
     lv_display_set_buffers(disp, fb, NULL, sizeof(fb), LV_DISPLAY_RENDER_MODE_DIRECT);
     lv_display_set_flush_cb(disp, flush_cb);
+    const bool late = argc > 2 && strcmp(argv[2], "late") == 0;  // "late": one device never connects (push = continue)
+
+    // "anim": only dump the splash every 100 ms (for a preview GIF), then stop.
+    if (argc > 2 && strcmp(argv[2], "anim") == 0) {
+        s_link_l = s_link_s = LinkState::Searching;
+        ui_init();
+        for (int i = 0; i < 46; i++) {
+            if (i == 14) s_link_l = LinkState::Connected;
+            if (i == 26) s_link_s = LinkState::Connected;
+            settle(100);
+            char name[32];
+            snprintf(name, sizeof(name), "anim_%03d", i);
+            dump(dir, name);
+        }
+        return 0;
+    }
+
+    // "held": the knob goes down on the splash and is still down when the splash ends: the release must not open the menu.
+    if (argc > 2 && strcmp(argv[2], "held") == 0) {
+        s_link_l = LinkState::Connected;
+        s_link_s = LinkState::Searching;
+        ui_init();
+        settle(2300);
+        EXPECT(is_splash());
+        ui_on_push(true);
+        settle(100);
+        s_link_s = LinkState::Connected;
+        settle(800);
+        EXPECT(!is_splash());
+        ui_on_push(false);
+        settle(400);
+        EXPECT(!has_accent());
+        printf("%s (%d failed checks)\n", failures ? "UI SPLASH (held) FAILED" : "UI splash (held) ok", failures);
+        return failures ? 1 : 0;
+    }
+
+    // ---- start-up splash ----
+    s_link_l = late ? LinkState::Connected : LinkState::Searching;
+    s_link_s = LinkState::Searching;
+    s_needs_confirm = !late;  // the launcher check must wait for the end of the splash
     ui_init();
+    settle(300);
+    EXPECT(is_splash());
+    EXPECT(splash_edges_clean());
+    dump(dir, "00_splash_waiting");
+    s_flush_n = s_flush_px = s_flush_full = 0;
+    settle(700);  // a second of steady waiting: cheap partial flushes only, never the whole frame
+    printf("splash waiting: %u flushes, %u px per 0.7 s (the home band: ~105000), %u full-frame flushes\n", (unsigned)s_flush_n,
+           (unsigned)s_flush_px, (unsigned)s_flush_full);
+    EXPECT(s_flush_full == 0 && s_flush_px < 35000u);  // well under the home band (160x78 at 12 fps)
+    dump(dir, "00_splash_waiting_b");
+
+    if (late) {
+        ui_on_push(true); settle(120); ui_on_push(false); settle(100);  // a push before the offer does nothing
+        EXPECT(is_splash());
+        settle(20500 - t);
+        EXPECT(is_splash() && splash_edges_clean());
+        dump(dir, "00_splash_push_to_continue");
+        ui_on_back();                                                   // Back does nothing on the splash
+        settle(100);
+        EXPECT(is_splash());
+        push();                                                         // now it continues to the home screen
+        EXPECT(!is_splash());
+        settle(500);
+        EXPECT(!has_accent());                                          // the push that ended the splash did not open the menu
+        dump(dir, "01_home_after_push");
+        printf("%s (%d failed checks)\n", failures ? "UI SPLASH (late) FAILED" : "UI splash (late) ok", failures);
+        return failures ? 1 : 0;
+    }
+
+    s_link_s = LinkState::Connected;  // only ONE device (the switchboard) for longer than the minimum time: the splash waits
+    settle(1500);
+    EXPECT(is_splash());
+    dump(dir, "00_splash_switchboard_connected");
+    s_link_l = LinkState::Connected;
+    settle(300);
+    EXPECT(is_splash());  // both connected, but they must be shown as connected for a moment first
+    EXPECT(splash_edges_clean());
+    dump(dir, "00_splash_both_connected");
     settle(500);
+    EXPECT(!is_splash());  // over: the home screen... or the check question, which waited for the splash
+    dump(dir, "01_check_after_splash");
+    push();                // the check question is open: answer it (first row = Bucket empty)
+    settle(400);
+    EXPECT(s_answer != Answer::None);
+    s_answer = Answer::None;
+    settle(300);
     dump(dir, "01_home");
 
     EXPECT(!s_maintenance);

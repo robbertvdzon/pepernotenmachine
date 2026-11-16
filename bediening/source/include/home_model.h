@@ -17,7 +17,7 @@ enum class BandState : uint8_t { Offline, Check, Error, Starting, Down, Lock, Up
 enum class TileState : uint8_t { Off, On, Active, Pending, Problem };
 enum class ToastLevel : uint8_t { None, Warn, Error };
 
-enum TileId : uint8_t { TILE_FOG, TILE_PANIC, TILE_FLASH, TILE_LAMP, TILE_SIREN, TILE_AUTO, TILE_DISPENSER, TILE_COUNT };
+enum TileId : uint8_t { TILE_FOG, TILE_PANIC, TILE_FLASH, TILE_LAMP, TILE_HORN, TILE_AUTO, TILE_DISPENSER, TILE_COUNT };
 
 struct HomeInputs {
     uint32_t now = 0;
@@ -34,7 +34,8 @@ struct HomeInputs {
     led_state_t panicLed = LED_OFF;
     led_state_t flashLed = LED_OFF;
     led_state_t lampLed = LED_OFF;
-    led_state_t sirenLed = LED_OFF;
+    led_state_t hornLed = LED_OFF;  // the airhorn (SW7)
+    led_state_t autoLed = LED_OFF;  // automatic mode (L1)
     bool dispenserValid = false;
     bool dispenserOn = false;
 

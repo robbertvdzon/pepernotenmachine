@@ -103,8 +103,8 @@ void HomeModel::updateTiles(const HomeInputs& in, HomeView& v) {
     v.tile[TILE_PANIC] = from_led(in.panicLed, true);
     v.tile[TILE_FLASH] = from_led(in.flashLed, true);
     v.tile[TILE_LAMP] = from_led(in.lampLed, true);
-    v.tile[TILE_SIREN] = from_led(in.sirenLed, true);
-    v.tile[TILE_AUTO] = TileState::Off;  // SW5 is not defined yet
+    v.tile[TILE_HORN] = from_led(in.hornLed, true);
+    v.tile[TILE_AUTO] = from_led(in.autoLed, false);  // automatic mode on = steady, fast flash = the switchboard cannot be reached
     v.tile[TILE_DISPENSER] = (in.dispenserValid && in.dispenserOn) ? TileState::Active : TileState::Off;
 }
 
@@ -143,7 +143,7 @@ void HomeModel::updateToast(const HomeInputs& in, HomeView& v) {
                 levels[n++] = ToastLevel::Warn;
             }
             if (v.tile[TILE_PANIC] == TileState::Problem || v.tile[TILE_FLASH] == TileState::Problem ||
-                v.tile[TILE_LAMP] == TileState::Problem || v.tile[TILE_SIREN] == TileState::Problem) {
+                v.tile[TILE_LAMP] == TileState::Problem || v.tile[TILE_HORN] == TileState::Problem) {
                 names[n] = STR_TOAST_RELAY_PROBLEM;
                 levels[n++] = ToastLevel::Warn;
             }

@@ -55,16 +55,9 @@
 
 #include "ble_devices.h"
 #include "control_config.h"
+#include "control_patterns.h"
 #include "led_pattern.h"
-
-// Switch indices; identical to SwitchId in switches.h (checked in controller.cpp).
-constexpr uint8_t CSW_PANIC = 1;
-constexpr uint8_t CSW_FOG = 2;
-constexpr uint8_t CSW_FLASH = 3;
-constexpr uint8_t CSW_AUTO = 4;
-constexpr uint8_t CSW_DECOR = 5;
-constexpr uint8_t CSW_SIREN = 6;
-constexpr uint8_t CSW_LAUNCH = 7;
+#include "pattern_runner.h"
 
 // What the unit believes about the physical launcher.
 enum class Known : uint8_t { Unknown = 0, AtRest = 1, Armed = 2 };
@@ -128,7 +121,7 @@ struct Command {
 
 struct ControlInputs {
     uint32_t now = 0;
-    uint32_t random = 0;  // fresh random bits every step (panic mode)
+    uint32_t random = 0;  // fresh random bits every step (random pattern durations)
 
     bool switchesValid = false;
     bool sw[8] = {false, false, false, false, false, false, false, false};  // true = switch active
@@ -176,7 +169,7 @@ struct ControlInputs {
 enum class RunState : uint8_t { Idle, Starting, Running, Stopping };
 
 struct ControlOutputs {
-    Command cmds[8];
+    Command cmds[12];
     uint8_t cmdCount = 0;
     led_state_t led[12];  // L1..L12; the logic drives L2, L4, L6, L7, L8 and L9 (the rest stays off)
     LauncherStatus launcher = LauncherStatus::Offline;
@@ -190,7 +183,7 @@ struct ControlOutputs {
     // For the display (no LED belongs to the siren).
     bool launchPending = false;      // launch sent, its outcome not reported yet
     uint8_t launchOkCount = 0;       // grows by one whenever a launch write was reported OK (wraps)
-    led_state_t sirenState = LED_OFF;  // same meaning as an LED: on = confirmed, flash = unconfirmed, fast = failing
+    led_state_t hornState = LED_OFF;   // the airhorn (SW7), same meaning as an LED, for the display (it has no LED)
     RunState dispense = RunState::Idle;
     RunState motor = RunState::Idle;
     bool durationBusy = false;  // saving the dispenser time (write + read-back) is in progress
@@ -211,9 +204,10 @@ class ControlLogic {
     void handleDuration(const ControlInputs& in, ControlOutputs& out);
     void addRead(ControlOutputs& out, uint8_t device, uint8_t ci, CmdTag tag);
     void addCommandBytes(ControlOutputs& out, uint8_t device, uint8_t ci, const uint8_t* data, uint8_t len, CmdTag tag);
-    led_state_t reconcileRelay(const ControlInputs& in, ControlOutputs& out, uint8_t relay, bool want_on);
-    led_state_t handleFog(const ControlInputs& in, ControlOutputs& out);
-    led_state_t handlePanic(const ControlInputs& in, ControlOutputs& out);
+    enum class RelayStatus : uint8_t { Synced, Pending, Failing };
+    RelayStatus reconcileRelay(const ControlInputs& in, ControlOutputs& out, uint8_t relay, bool want_on);
+    void handleDevices(const ControlInputs& in, ControlOutputs& out);
+    led_state_t handleFog(const ControlInputs& in, ControlOutputs& out, bool want, bool enabled);
     void addCommand(ControlOutputs& out, uint8_t device, uint8_t ci, uint8_t b0, uint8_t b1, uint8_t len, CmdTag tag);
     void askDriver(CheckReason why);
 
@@ -272,21 +266,20 @@ class ControlLogic {
 
     // relays (index = relay - 1)
     bool relaySent_[8];
+    bool relaySentWant_[8];  // what the last command asked for: a changed wish is sent at once, not after the resend interval
     uint32_t lastRelaySend_[8];
     bool pending_[8];
     uint32_t pendingSince_[8];
+
+    // devices: priority manual switch > panic > auto, patterns (control_patterns.h)
+    enum class Source : uint8_t { None, Manual, Panic, Auto };
+    PatternRunner runner_[DEVICE_COUNT];
+    Source source_[DEVICE_COUNT];
+    uint32_t rng_ = 12345;
 
     // fog
     bool fogStartSent_ = false;
     uint32_t lastFogStart_ = 0;
     bool fogStopSent_ = false;
     uint32_t lastFogStop_ = 0;
-
-    // panic
-    bool panicActive_ = false;
-    uint8_t panicCurrent_ = 0;  // relay that is on right now (0 = none)
-    uint8_t panicLast_ = 0;
-    uint32_t panicNextAt_ = 0;
-    bool panicCleanup_ = false;
-    uint32_t panicCleanupUntil_ = 0;
 };

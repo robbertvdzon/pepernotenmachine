@@ -17,12 +17,14 @@ for v in 9.1.0 9.6.0; do
     mkdir -p /tmp/obj_${n}_s64
     ( cd /tmp/$n
       { find src/libs/bin_decoder -name '*.c' 2>/dev/null; find src -name '*.c' | grep -Ev "$EXCLUDE"; } |
-      while read f; do gcc -O0 -w $DEFS -I. -c $f -o /tmp/obj_${n}_s64/$(echo $f | tr / _).o; done )
+      xargs -P "$(nproc)" -I{} sh -c 'gcc -O0 -w '"$DEFS"' -I. -c {} -o /tmp/obj_'"${n}"'_s64/$(echo {} | tr / _).o' )
     ar rcs $LIB /tmp/obj_${n}_s64/*.o
   fi
   mkdir -p $OUT/$n/home $OUT/$n/ui
   gcc -O0 -w $DEFS -I/tmp/$n -c $ROOT/src/fonts/font_pixel_16.c -o $OUT/$n/font.o
-  COMMON="$ROOT/src/ui_home.cpp $ROOT/src/home_model.cpp $ROOT/src/home_sprites.cpp $ROOT/src/gfx.cpp $ROOT/src/control_logic.cpp $ROOT/src/ble_devices.cpp $OUT/$n/font.o $LIB -lm"
+  gcc -O0 -w $DEFS -I/tmp/$n -c $ROOT/src/fonts/font_splash_title.c -o $OUT/$n/font_splash_t.o
+  gcc -O0 -w $DEFS -I/tmp/$n -c $ROOT/src/fonts/font_splash_sub.c -o $OUT/$n/font_splash_s.o
+  COMMON="$ROOT/src/ui_home.cpp $ROOT/src/home_model.cpp $ROOT/src/home_sprites.cpp $ROOT/src/gfx.cpp $ROOT/src/control_logic.cpp $ROOT/src/pattern_runner.cpp $ROOT/src/ble_devices.cpp $ROOT/src/ui_splash.cpp $ROOT/src/splash_model.cpp $ROOT/src/splash_sprites.cpp $ROOT/src/splash_art.cpp $OUT/$n/font.o $OUT/$n/font_splash_t.o $OUT/$n/font_splash_s.o $LIB -lm"
   FLAGS="-std=gnu++11 -O0 -Wall -Wextra $DEFS -I$ROOT/test/offtarget/stubs -I$ROOT/include -I/tmp/$n"
   echo "== $n: home screen"
   g++ $FLAGS $ROOT/test/offtarget/main.cpp $COMMON -o $OUT/$n/run_home
@@ -33,4 +35,14 @@ for v in 9.1.0 9.6.0; do
   echo "== $n: real ui.cpp session"
   g++ $FLAGS -Wno-class-memaccess $ROOT/test/offtarget/ui_main.cpp $ROOT/src/ui.cpp $COMMON -o $OUT/$n/run_ui
   $OUT/$n/run_ui $OUT/$n/ui
+  echo "== $n: splash, a device never connects"
+  mkdir -p $OUT/$n/splash_late
+  $OUT/$n/run_ui $OUT/$n/splash_late late
+  echo "== $n: splash, knob held while the splash ends"
+  $OUT/$n/run_ui $OUT/$n/splash_late held
+  echo "== $n: Dutch build (-DUI_LANG_NL): the same session and splash scenarios"
+  mkdir -p $OUT/$n/ui_nl $OUT/$n/splash_late_nl
+  g++ $FLAGS -DUI_LANG_NL -Wno-class-memaccess $ROOT/test/offtarget/ui_main.cpp $ROOT/src/ui.cpp $COMMON -o $OUT/$n/run_ui_nl
+  $OUT/$n/run_ui_nl $OUT/$n/ui_nl
+  $OUT/$n/run_ui_nl $OUT/$n/splash_late_nl late
 done

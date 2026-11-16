@@ -168,3 +168,8 @@ UI_FITS(STR_SAVED, 5);
 UI_FITS(STR_NONE, 5);
 UI_FITS(STR_SRC_UUID, 4);
 UI_FITS(STR_SRC_NAME, 4);
+
+// ---- start-up splash: the title font is proportional (Passion One Bold 26 px, about 13 px per letter: 11 letters + outline fit 158 px) ----
+UI_FITS(STR_SPLASH_TITLE, 11);
+UI_FITS(STR_SPLASH_SUBTITLE, 16);
+UI_FITS(STR_SPLASH_CONTINUE, 17);  // 8 px per character, shown at the top of the screen

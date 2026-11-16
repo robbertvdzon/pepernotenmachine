@@ -7,11 +7,26 @@
 
 #include <stdint.h>
 
-// Switchboard relay numbers, 1..8. 0 = not wired / disabled.
-// NOTHING IS WIRED YET: these are placeholders, change them here when the wiring is known.
-constexpr uint8_t RELAY_FLASHING_LIGHT = 1;    // SW4
-constexpr uint8_t RELAY_DECORATIVE_LIGHT = 2;  // SW6
-constexpr uint8_t RELAY_SIREN = 3;             // SW7, momentary: relay follows the button
+// Control-unit switch indices (identical to SwitchId in switches.h; checked in controller.cpp).
+constexpr uint8_t CSW_PANIC = 1;   // SW2
+constexpr uint8_t CSW_FOG = 2;     // SW3
+constexpr uint8_t CSW_FLASH = 3;   // SW4 flashlights
+constexpr uint8_t CSW_AUTO = 4;    // SW5 automatic mode
+constexpr uint8_t CSW_DECOR = 5;   // SW6 illumination
+constexpr uint8_t CSW_HORN = 6;    // SW7 airhorn (momentary: the relay follows the button)
+constexpr uint8_t CSW_LAUNCH = 7;  // SW8
+constexpr int8_t CSW_NONE = -1;    // device without a dedicated manual switch
+
+// Switchboard relay numbers, 1..8 (0 = not wired). The device table with their behaviour is in control_patterns.h.
+constexpr uint8_t RELAY_RED_FLASH = 1;        // red flashlight, outside right back, 220 V
+constexpr uint8_t RELAY_ORANGE_INSIDE = 2;    // orange flashlight, inside, 220 V
+constexpr uint8_t RELAY_STROBE_INSIDE = 3;    // strobe light, inside, 220 V
+constexpr uint8_t RELAY_ILLUMINATION = 4;     // illumination, exterior, 220 V
+constexpr uint8_t RELAY_ORANGE_RIGHT = 5;     // orange flashlight, outside right front, 24 V
+constexpr uint8_t RELAY_AIRHORN = 6;          // airhorn, outside right front, 24 V
+constexpr uint8_t RELAY_SIREN = 7;            // siren, outside left back, 12 V (very loud)
+constexpr uint8_t RELAY_ORANGE_LEFT = 8;      // orange flashlight, outside left front, 12 V
+// The fog machine hangs on the switchboard's fog output (D9), not on a relay.
 
 // Idempotent state commands (relays) are re-sent until the switchboard confirms the state.
 constexpr uint32_t RELAY_RESEND_MS = 500;
@@ -28,18 +43,9 @@ constexpr uint32_t PREPARE_TIMEOUT_MS = 90000;      // preparation takes ~65 s n
 constexpr uint32_t PREPARE_RETRY_MS = 3000;         // a prepare write that failed is tried again after this
 constexpr uint8_t PREPARE_MAX_FAILS = 3;            // ... at most this many times in a row, then the driver is asked
 
-// Panic switch (SW2): fires some bells / horns (relays) in random order, just for fun.
-// NOTHING IS WIRED YET: placeholder relay numbers, must differ from the relays above.
-constexpr uint8_t PANIC_RELAYS[] = {4, 5, 6, 7};
-constexpr uint8_t PANIC_RELAY_COUNT = sizeof(PANIC_RELAYS) / sizeof(PANIC_RELAYS[0]);
-constexpr uint32_t PANIC_ON_MIN_MS = 300;    // a relay stays on for ON_MIN .. ON_MIN+ON_SPAN
-constexpr uint32_t PANIC_ON_SPAN_MS = 900;
-constexpr uint32_t PANIC_GAP_MIN_MS = 150;   // pause before the next one: GAP_MIN .. GAP_MIN+GAP_SPAN
-constexpr uint32_t PANIC_GAP_SPAN_MS = 750;
-constexpr uint32_t PANIC_CLEANUP_MS = 2000;  // after the switch goes off the relays are forced off for this long
-
 // Feedback.
-constexpr uint32_t LED_PENDING_ERROR_MS = 3000;  // a command that is still not confirmed after this = fast flash
+constexpr uint32_t LED_PENDING_SHOW_MS = 700;    // a relay command that is not confirmed after this = flash (shorter lags are not shown)
+constexpr uint32_t LED_PENDING_ERROR_MS = 3000;  // ... and after this = fast flash
 constexpr uint32_t REJECT_FLASH_MS = 1500;       // L2 fast-flash after a rejected launch
 constexpr uint32_t MESSAGE_SHOW_MS = 3000;       // how long the UI shows a message
 

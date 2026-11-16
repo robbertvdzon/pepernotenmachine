@@ -13,7 +13,7 @@ enum SwitchId : uint8_t {
     SW4_FLASH,       // maintained - flashing light
     SW5_AUTO,        // maintained - automatic mode
     SW6_DECOR,       // maintained - decorative lighting
-    SW7_SIREN,       // momentary
+    SW7_HORN,       // momentary
     SW8_LAUNCH,      // momentary
 };
 
