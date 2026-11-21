@@ -69,7 +69,13 @@
           "thermal_relief_spoke_width": 0.5
         }
       },
-      "diff_pair_dimensions": [],
+      "diff_pair_dimensions": [
+        {
+          "gap": 0.0,
+          "via_gap": 0.0,
+          "width": 0.0
+        }
+      ],
       "drc_exclusions": [],
       "meta": {
         "version": 2
@@ -203,7 +209,11 @@
           "td_width_to_size_filter_ratio": 0.9
         }
       ],
-      "track_widths": [],
+      "track_widths": [
+        0.0,
+        0.2,
+        1.0
+      ],
       "tuning_pattern_settings": {
         "diff_pair_defaults": {
           "corner_radius_percentage": 80,
@@ -230,7 +240,12 @@
           "spacing": 0.6
         }
       },
-      "via_dimensions": [],
+      "via_dimensions": [
+        {
+          "diameter": 0.0,
+          "drill": 0.0
+        }
+      ],
       "zones_allow_external_fillets": false
     },
     "ipc2581": {
@@ -661,7 +676,7 @@
         "uuid": "0a52b8e1-a7d2-4d3c-b2d6-8456d76cc366"
       }
     ],
-    "used_designators": "3.3v\\-pins\\-leds1,GNDpins1,K3-10,J1-10,J15-22,Q1-3,Q5-6,Q9-15,C1-3,#PWR1-18,#PWR20-55,A1,D1-15,D17,D32-47,D53-55,U1,R1-31,R34-41,R44-59,R61-62,R67-69",
+    "used_designators": "3.3v\\-pins\\-leds1,Q1-3,Q5-6,Q9-15,C1-3,#PWR1-18,#PWR20-55,A1,D1-15,D17,D32-47,D53-55,GNDpins1,K3-10,J1-10,J15-22,U1,R1-31,R34-41,R44-59,R61-62,R67-69",
     "variants": []
   },
   "sheets": [

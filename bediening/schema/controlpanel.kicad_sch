@@ -6139,7 +6139,6 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "0ae26bbe-a9de-4503-9d62-fb3c3ae6475d")
 		(property "Reference" "#PWR014"
 			(at 212.09 50.8 0)
@@ -6152,14 +6151,15 @@
 				)
 			)
 		)
-		(property "Value" "+3V3"
-			(at 212.09 41.91 0)
+		(property "Value" "+3.3V"
+			(at 210.312 42.164 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify left)
 			)
 		)
 		(property "Footprint" ""
@@ -7069,7 +7069,6 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "5a326756-7cff-4b90-8ab0-297fd16f6560")
 		(property "Reference" "#PWR07"
 			(at 38.1 27.94 0)
@@ -7082,14 +7081,15 @@
 				)
 			)
 		)
-		(property "Value" "+3V3"
-			(at 38.1 19.05 0)
+		(property "Value" "+3.3V"
+			(at 35.052 20.066 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify left)
 			)
 		)
 		(property "Footprint" ""
@@ -7475,7 +7475,6 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "75cfc6a5-2e2d-4841-9661-3d122c9e8abb")
 		(property "Reference" "#PWR013"
 			(at 166.37 53.34 0)
@@ -7488,14 +7487,15 @@
 				)
 			)
 		)
-		(property "Value" "+3V3"
-			(at 166.37 44.45 0)
+		(property "Value" "+3.3V"
+			(at 165.1 44.704 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify left)
 			)
 		)
 		(property "Footprint" ""
@@ -8381,7 +8381,6 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "92fc1868-dcf0-4300-bee6-eb859b9bcd7d")
 		(property "Reference" "#PWR016"
 			(at 78.74 26.67 0)
@@ -8394,14 +8393,15 @@
 				)
 			)
 		)
-		(property "Value" "+3V3"
-			(at 78.74 17.78 0)
+		(property "Value" "+3.3V"
+			(at 76.454 18.288 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
+				(justify left)
 			)
 		)
 		(property "Footprint" ""
