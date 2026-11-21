@@ -12,5 +12,5 @@ void dispenser_init(dispenser_notify_cb_t notifyCb);
 void dispenser_set_duration(uint8_t seconds);
 uint8_t dispenser_get_duration(void);
 
-// Start dispensing (1) or stop (0)
+// Start for the configured duration (1), run continuously forward (2) or reverse (3), or stop (0)
 void dispenser_control(uint8_t command);

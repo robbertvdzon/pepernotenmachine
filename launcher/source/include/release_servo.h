@@ -2,9 +2,10 @@
 #include <stdint.h>
 
 // Release servo control API
+typedef void (*release_servo_angle_changed_cb_t)(uint8_t angle);
 
 // Initialize servo hardware (attach to pin)
-void release_servo_init();
+void release_servo_init(release_servo_angle_changed_cb_t angleChangedCb);
 
 // Set servo angle in degrees (0-180)
 void release_servo_set_angle(uint8_t angle);
